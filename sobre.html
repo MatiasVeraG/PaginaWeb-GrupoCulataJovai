@@ -9,6 +9,52 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Alinear logo e idiomas con index.html en escritorio */
+        @media (min-width: 769px) {
+            .landing-header,
+            .landing-header.scrolled {
+                padding: 40px;
+            }
+            .about-simple-section {
+                padding-top: 160px;
+            }
+        }
+        .sobre-lang {
+            position: fixed;
+            left: 32px;
+            bottom: 32px;
+            z-index: 200;
+            gap: 16px;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.9);
+        }
+        .sobre-lang .lang-option {
+            font-size: 10px;
+            letter-spacing: 1px;
+            line-height: normal;
+            color: var(--text-color);
+            opacity: 0.5;
+            text-transform: lowercase;
+            transition: opacity 0.3s ease;
+        }
+        .sobre-lang .lang-option:hover,
+        .sobre-lang .lang-option.active {
+            opacity: 1;
+            text-decoration: underline;
+        }
+        @media (max-width: 768px) {
+            .sobre-lang {
+                left: auto;
+                right: 20px;
+                bottom: 20px;
+                padding: 5px 12px;
+                border-radius: 20px;
+                border: 1px solid rgba(0, 0, 0, 0.08);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+            }
+        }
+    </style>
 </head>
 <body>
     <!-- HEADER -->
@@ -38,7 +84,7 @@
     </section>
 
     <!-- SELECTOR DE IDIOMA -->
-    <div class="language-selector" style="position: fixed; bottom: 30px; right: 30px; z-index: 200;">
+    <div class="language-selector sobre-lang">
         <span class="lang-option active" data-lang="es" onclick="changeLanguage('es')">es</span>
         <span class="lang-option" data-lang="en" onclick="changeLanguage('en')">en</span>
         <span class="lang-option" data-lang="de" onclick="changeLanguage('de')">de</span>
