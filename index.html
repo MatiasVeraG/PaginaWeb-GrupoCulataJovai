@@ -289,7 +289,7 @@
             }
 
             .about-link a {
-                padding-bottom: 0px !important;
+                padding-bottom: 28px !important;
             }
 
             .contact-info {
@@ -376,8 +376,8 @@
                         <a href="sobre.html" data-i18n="nav-sobre">Sobre</a>
                     </div>
                     <div class="social-links-text">
-                        <a href="https://www.instagram.com" target="_blank">Instagram</a>
-                        <a href="https://www.facebook.com" target="_blank">Facebook</a>
+                        <a href="https://www.instagram.com/culatajovai.arq/" target="_blank" rel="noopener">Instagram</a>
+                        <a href="https://www.facebook.com/grupoculatajovai" target="_blank" rel="noopener">Facebook</a>
                     </div>
                 </div>
             </div>
@@ -437,15 +437,27 @@
         }
 
         // Obtener portadas de los proyectos de forma estática (sin backend)
-        // Obtener portadas de los proyectos de forma estática (sin backend)
         async function getCarouselImages() {
             return [
-                { cover: 'images/casa miralgo/casa-miralago-grupo-culata-jovai_21.jpg', title: 'Casa Miralago' },
-                { cover: 'images/casa mainumby/casa-mainumby-grupo-culata-jovai_16.jpg', title: 'Casa Mainumby' },
-                { cover: 'images/casa mainumby/casa-mainumby-grupo-culata-jovai_11.jpg', title: 'Casa Mainumby' },
-                { cover: 'images/casa mainumby/casa-mainumby-grupo-culata-jovai_14.jpg', title: 'Casa Mainumby' },
-                { cover: 'images/vivienda gt/30-vivienda-gt-grupo-culata-jovai-c-federico-cairoli-low.jpg', title: 'Vivienda GT' },
-                { cover: 'images/casa miralgo/casa-miralago-grupo-culata-jovai_16.jpg', title: 'Casa Miralago' }
+                { cover: 'images/carrusel/01-la-cuadrita-1.jpg', title: 'La Cuadrita' },
+                { cover: 'images/carrusel/02-edificio-carpinelli.jpg', title: 'Edificio Carpinelli' },
+                { cover: 'images/carrusel/03-vivienda-gt.jpg', title: 'Vivienda GT' },
+                { cover: 'images/carrusel/04-vivienda-los-mangos.jpg', title: 'Vivienda Los Mangos' },
+                { cover: 'images/carrusel/05-vivienda-los-mangos-2.jpg', title: 'Vivienda Los Mangos II' },
+                { cover: 'images/carrusel/06-casa-ilona.jpg', title: 'Casa Ilona' },
+                { cover: 'images/carrusel/07-petalo-de-estrellas.jpg', title: 'Pétalo de Estrellas' },
+                { cover: 'images/carrusel/08-estudio-ciudad-nueva.jpg', title: 'Estudio Ciudad Nueva' },
+                { cover: 'images/carrusel/09-la-cuadrita-2.jpg', title: 'La Cuadrita' },
+                { cover: 'images/carrusel/10-casita-suburbana.jpg', title: 'Casita Suburbana' },
+                { cover: 'images/carrusel/11-vivienda-aqua.jpg', title: 'Vivienda Aqua' },
+                { cover: 'images/carrusel/12-reforma-casa-serbia.jpg', title: 'Reforma Casa Serbia' },
+                { cover: 'images/carrusel/13-casa-para-un-malabarista.jpg', title: 'Casa para un malabarista' },
+                { cover: 'images/carrusel/14-pai-nu.jpg', title: 'Pa´í Ñu' },
+                { cover: 'images/carrusel/15-casa-miralago.jpg', title: 'Casa Miralago' },
+                { cover: 'images/carrusel/16-leo-i.jpg', title: 'Leo I' },
+                { cover: 'images/carrusel/17-obra-4g0a3836.jpg', title: 'Grupo Culata Jovái' },
+                { cover: 'images/carrusel/18-obra-dsc01602.jpg', title: 'Grupo Culata Jovái' },
+                { cover: 'images/carrusel/19-obra-57a6456.jpg', title: 'Grupo Culata Jovái' }
             ];
         }
 
@@ -478,9 +490,11 @@
             });
 
             // Establecer posición inicial en el primer elemento real (saltando el clon)
-            setTimeout(() => {
-                container.scrollLeft = container.clientWidth;
-            }, 0);
+            // Sin animación: si no, el scroll infinito interpreta el salto inicial como llegar al clon
+            container.style.scrollBehavior = 'auto';
+            container.scrollLeft = container.clientWidth;
+            container.offsetHeight;
+            container.style.scrollBehavior = 'smooth';
         }
 
         // Scroll infinito con clones
