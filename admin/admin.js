@@ -1025,12 +1025,15 @@
         const stage = $('#previewStage');
         const frame = $('#previewFrame');
         const mobile = state.device === 'mobile';
-        const W = mobile ? 390 : 1440, H = mobile ? 800 : 900;
-        const border = mobile ? 16 : 0;
+        // iPhone 15: 393 × 852 (pantalla completa con barras de iOS y Safari)
+        const W = mobile ? 393 : 1440, H = mobile ? 852 : 900;
+        const border = mobile ? 24 : 0;
         const availW = stage.clientWidth - 36, availH = stage.clientHeight - 36;
         if (availW <= 0 || availH <= 0) return;
         const scale = Math.min(1, availW / (W + border), availH / (H + border));
         frame.classList.toggle('mobile', mobile);
+        const url = $('#phoneUrl');
+        if (url) url.textContent = location.host.replace(/^www\./, '');
         Object.assign(frame.style, {
             width: (W + border) + 'px', height: (H + border) + 'px',
             transform: `translateX(-50%) scale(${scale})`

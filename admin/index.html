@@ -55,13 +55,25 @@
                     <span class="preview-title">Vista previa <small>(sin publicar)</small></span>
                     <div class="seg" id="deviceTabs">
                         <button type="button" data-device="desktop" class="active">Compu</button>
-                        <button type="button" data-device="mobile">Celular</button>
+                        <button type="button" data-device="mobile" title="iPhone 15 en Safari: 393 × 659 px visibles">iPhone 15</button>
                     </div>
                     <a class="preview-open" id="openSite" href="/" target="_blank" rel="noopener">Ver sitio publicado ↗</a>
                 </div>
                 <div class="preview-stage" id="previewStage">
                     <div class="preview-frame" id="previewFrame">
+                        <!-- Barra de estado del iPhone 15 (solo en vista Celular) -->
+                        <div class="phone-status" aria-hidden="true">
+                            <span class="phone-time">9:41</span>
+                            <span class="phone-island"></span>
+                            <span class="phone-icons"><span class="phone-signal"><i></i><i></i><i></i><i></i></span><span class="phone-battery"><i></i></span></span>
+                        </div>
                         <iframe id="previewIframe" title="Vista previa del sitio"></iframe>
+                        <!-- Barra inferior de Safari (solo en vista Celular) -->
+                        <div class="phone-safari" aria-hidden="true">
+                            <div class="phone-url"><span class="phone-aa">AA</span><span id="phoneUrl">culatajovai.com</span><span class="phone-reload">↻</span></div>
+                            <div class="phone-tools"><span>‹</span><span class="dim">›</span><span>⇧</span><span>▢</span><span>⧉</span></div>
+                            <div class="phone-home"></div>
+                        </div>
                     </div>
                 </div>
             </section>
