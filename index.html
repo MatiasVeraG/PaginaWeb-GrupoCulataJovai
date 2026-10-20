@@ -355,29 +355,29 @@
         <!-- HEADER MOBILE -->
         <div class="mobile-header">
             <div class="logo-text" onclick="window.location.href='index.html'">
-                <img src="images/logo.png" alt="Grupo Culata Jovái Arquitectos">
+                <img class="cms-logo" src="images/logo.png" alt="Grupo Culata Jovái Arquitectos">
             </div>
         </div>
 
         <!-- SIDEBAR -->
         <aside class="sidebar">
             <div class="logo-text desktop-logo" onclick="window.location.href='index.html'">
-                <img src="images/logo.png" alt="Grupo Culata Jovái Arquitectos">
+                <img class="cms-logo" src="images/logo.png" alt="Grupo Culata Jovái Arquitectos">
             </div>
 
             <div class="contact-block">
                 <div class="contact-info">
-                    <p><strong data-i18n="contact-address">Dirección</strong><br>Asunción, Paraguay</p>
-                    <p><strong>Email</strong><br><a href="mailto:contacto@culatajovai.com">contacto@culatajovai.com</a></p>
-                    <p><strong data-i18n="contact-phone">Teléfono</strong><br><a href="tel:+595999000000">+595 999 000 000</a></p>
+                    <p><strong data-i18n="contact-address">Dirección</strong><br><span id="cmsAddress">Asunción, Paraguay</span></p>
+                    <p id="cmsEmailRow"><strong>Email</strong><br><a id="cmsEmail" href="mailto:contacto@culatajovai.com">contacto@culatajovai.com</a></p>
+                    <p id="cmsPhoneRow"><strong data-i18n="contact-phone">Teléfono</strong><br><a id="cmsPhone" href="tel:+595999000000">+595 999 000 000</a></p>
                 </div>
                 <div class="links-column">
                     <div class="social-links-text about-link">
                         <a href="sobre.html" data-i18n="nav-sobre">Sobre</a>
                     </div>
                     <div class="social-links-text">
-                        <a href="https://www.instagram.com/culatajovai.arq/" target="_blank" rel="noopener">Instagram</a>
-                        <a href="https://www.facebook.com/grupoculatajovai" target="_blank" rel="noopener">Facebook</a>
+                        <a id="cmsInstagram" href="https://www.instagram.com/culatajovai.arq/" target="_blank" rel="noopener">Instagram</a>
+                        <a id="cmsFacebook" href="https://www.facebook.com/grupoculatajovai" target="_blank" rel="noopener">Facebook</a>
                     </div>
                 </div>
             </div>
@@ -398,94 +398,126 @@
         </div>
     </div>
 
+    <script src="cms.js"></script>
     <script>
-        // Sistema de traducción
+        // Textos por defecto (se reemplazan por lo que se edite en /admin)
         const translations = {
             es: { 'contact-address': 'Dirección', 'contact-phone': 'Teléfono', 'nav-sobre': 'Sobre' },
             en: { 'contact-address': 'Address', 'contact-phone': 'Phone', 'nav-sobre': 'About' },
             de: { 'contact-address': 'Adresse', 'contact-phone': 'Telefon', 'nav-sobre': 'Über' }
         };
 
+        // Fotos por defecto del carrusel (si el panel no tiene contenido guardado)
+        const DEFAULT_CAROUSEL = [
+            { src: 'images/carrusel/01-la-cuadrita-1.jpg', title: 'La Cuadrita' },
+            { src: 'images/carrusel/02-edificio-carpinelli.jpg', title: 'Edificio Carpinelli' },
+            { src: 'images/carrusel/03-vivienda-gt.jpg', title: 'Vivienda GT' },
+            { src: 'images/carrusel/04-vivienda-los-mangos.jpg', title: 'Vivienda Los Mangos' },
+            { src: 'images/carrusel/05-vivienda-los-mangos-2.jpg', title: 'Vivienda Los Mangos II' },
+            { src: 'images/carrusel/06-casa-ilona.jpg', title: 'Casa Ilona' },
+            { src: 'images/carrusel/07-petalo-de-estrellas.jpg', title: 'Pétalo de Estrellas' },
+            { src: 'images/carrusel/08-estudio-ciudad-nueva.jpg', title: 'Estudio Ciudad Nueva' },
+            { src: 'images/carrusel/09-la-cuadrita-2.jpg', title: 'La Cuadrita' },
+            { src: 'images/carrusel/10-casita-suburbana.jpg', title: 'Casita Suburbana' },
+            { src: 'images/carrusel/11-vivienda-aqua.jpg', title: 'Vivienda Aqua' },
+            { src: 'images/carrusel/12-reforma-casa-serbia.jpg', title: 'Reforma Casa Serbia' },
+            { src: 'images/carrusel/13-casa-para-un-malabarista.jpg', title: 'Casa para un malabarista' },
+            { src: 'images/carrusel/14-pai-nu.jpg', title: 'Pa´í Ñu' },
+            { src: 'images/carrusel/15-casa-miralago.jpg', title: 'Casa Miralago' },
+            { src: 'images/carrusel/16-leo-i.jpg', title: 'Leo I' },
+            { src: 'images/carrusel/17-obra-4g0a3836.jpg', title: 'Grupo Culata Jovái' },
+            { src: 'images/carrusel/18-obra-dsc01602.jpg', title: 'Grupo Culata Jovái' },
+            { src: 'images/carrusel/19-obra-57a6456.jpg', title: 'Grupo Culata Jovái' }
+        ];
+
+        let SITE = null;          // contenido publicado desde /admin
+        let currentLang = CMS.savedLang();
+        let renderedCarousel = '';
+
         function changeLanguage(lang) {
-            localStorage.setItem('selectedLanguage', lang);
+            currentLang = lang;
+            try { localStorage.setItem('selectedLanguage', lang); } catch (e) {}
             updateLanguageUI(lang);
             applyTranslations(lang);
         }
 
         function updateLanguageUI(lang) {
             document.querySelectorAll('.lang-option').forEach(option => {
-                option.classList.remove('active');
-                if (option.dataset.lang === lang) {
-                    option.classList.add('active');
-                }
+                option.classList.toggle('active', option.dataset.lang === lang);
             });
         }
 
         function applyTranslations(lang) {
+            document.documentElement.lang = lang;
             document.querySelectorAll('[data-i18n]').forEach(element => {
                 const key = element.dataset.i18n;
                 if (translations[lang] && translations[lang][key]) {
                     element.textContent = translations[lang][key];
                 }
             });
+            if (SITE) applyContent(SITE, lang);
         }
 
-        function initLanguage() {
-            const savedLang = localStorage.getItem('selectedLanguage') || 'es';
-            updateLanguageUI(savedLang);
-            applyTranslations(savedLang);
+        function setText(id, text) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = text;
         }
 
-        // Obtener portadas de los proyectos de forma estática (sin backend)
-        async function getCarouselImages() {
-            return [
-                { cover: 'images/carrusel/01-la-cuadrita-1.jpg', title: 'La Cuadrita' },
-                { cover: 'images/carrusel/02-edificio-carpinelli.jpg', title: 'Edificio Carpinelli' },
-                { cover: 'images/carrusel/03-vivienda-gt.jpg', title: 'Vivienda GT' },
-                { cover: 'images/carrusel/04-vivienda-los-mangos.jpg', title: 'Vivienda Los Mangos' },
-                { cover: 'images/carrusel/05-vivienda-los-mangos-2.jpg', title: 'Vivienda Los Mangos II' },
-                { cover: 'images/carrusel/06-casa-ilona.jpg', title: 'Casa Ilona' },
-                { cover: 'images/carrusel/07-petalo-de-estrellas.jpg', title: 'Pétalo de Estrellas' },
-                { cover: 'images/carrusel/08-estudio-ciudad-nueva.jpg', title: 'Estudio Ciudad Nueva' },
-                { cover: 'images/carrusel/09-la-cuadrita-2.jpg', title: 'La Cuadrita' },
-                { cover: 'images/carrusel/10-casita-suburbana.jpg', title: 'Casita Suburbana' },
-                { cover: 'images/carrusel/11-vivienda-aqua.jpg', title: 'Vivienda Aqua' },
-                { cover: 'images/carrusel/12-reforma-casa-serbia.jpg', title: 'Reforma Casa Serbia' },
-                { cover: 'images/carrusel/13-casa-para-un-malabarista.jpg', title: 'Casa para un malabarista' },
-                { cover: 'images/carrusel/14-pai-nu.jpg', title: 'Pa´í Ñu' },
-                { cover: 'images/carrusel/15-casa-miralago.jpg', title: 'Casa Miralago' },
-                { cover: 'images/carrusel/16-leo-i.jpg', title: 'Leo I' },
-                { cover: 'images/carrusel/17-obra-4g0a3836.jpg', title: 'Grupo Culata Jovái' },
-                { cover: 'images/carrusel/18-obra-dsc01602.jpg', title: 'Grupo Culata Jovái' },
-                { cover: 'images/carrusel/19-obra-57a6456.jpg', title: 'Grupo Culata Jovái' }
-            ];
+        function applyContent(c, lang) {
+            const t = v => CMS.tr(v, lang);
+            const h = c.home;
+            document.querySelector('[data-i18n="contact-address"]').textContent = t(h.labels.address);
+            document.querySelector('[data-i18n="contact-phone"]').textContent = t(h.labels.phone);
+            document.querySelector('[data-i18n="nav-sobre"]').textContent = t(h.labels.about);
+            setText('cmsAddress', t(h.address));
+
+            const email = document.getElementById('cmsEmail');
+            email.textContent = h.email;
+            email.href = 'mailto:' + h.email;
+            document.getElementById('cmsEmailRow').hidden = !h.email;
+
+            const phone = document.getElementById('cmsPhone');
+            phone.textContent = h.phone;
+            phone.href = CMS.telHref(h.phone);
+            document.getElementById('cmsPhoneRow').hidden = !h.phone;
+
+            [['cmsInstagram', h.instagram], ['cmsFacebook', h.facebook]].forEach(([id, url]) => {
+                const a = document.getElementById(id);
+                a.href = url || '#';
+                a.hidden = !url;
+            });
+
+            document.querySelectorAll('.cms-logo').forEach(img => {
+                img.src = c.global.logo.src;
+                img.alt = c.global.logo.alt;
+            });
         }
 
         // Crear slides del carousel
-        async function createCarousel() {
-            const projects = await getCarouselImages();
-            const container = document.getElementById('carouselContainer');
+        function createCarousel() {
+            const projects = (SITE && SITE.home.carousel) || DEFAULT_CAROUSEL;
+            const signature = JSON.stringify(projects);
+            if (signature === renderedCarousel) return;
+            renderedCarousel = signature;
 
-            if (projects.length === 0) {
-                container.innerHTML = '<div class="loading">No hay proyectos disponibles</div>';
-                return;
-            }
-            
+            const container = document.getElementById('carouselContainer');
             container.innerHTML = '';
+            if (!projects.length) return;
 
             // Clonar último elemento al inicio y el primer elemento al final para efecto infinito
             const allProjects = [projects[projects.length - 1], ...projects, projects[0]];
 
-            allProjects.forEach((project) => {
+            allProjects.forEach((project, i) => {
                 const slide = document.createElement('div');
                 slide.className = 'carousel-slide';
-                
-                if (project.cover) {
-                    slide.innerHTML = `<img src="${project.cover}" alt="${project.title}">`;
-                } else {
-                    slide.innerHTML = `<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#999;letter-spacing:1px;text-transform:uppercase;">Sin portada</div>`;
-                }
-                
+                const img = document.createElement('img');
+                img.src = project.src;
+                img.alt = project.title || '';
+                img.decoding = 'async';
+                if (project.pos) img.style.objectPosition = project.pos;
+                if (i === 1) img.fetchPriority = 'high';
+                else if (i > 2 && i < allProjects.length - 1) img.loading = 'lazy';
+                slide.appendChild(img);
                 container.appendChild(slide);
             });
 
@@ -509,7 +541,7 @@
                     container.style.scrollBehavior = 'auto';
                     container.scrollLeft = container.clientWidth;
                     // Forzar reflow antes de restaurar smooth
-                    container.offsetHeight; 
+                    container.offsetHeight;
                     container.style.scrollBehavior = 'smooth';
                 }
                 // Si llegó al clon del inicio (izquierda)
@@ -532,13 +564,26 @@
             });
         };
 
-        // Inicializar carousel
-        createCarousel().then(() => {
-            setupInfiniteScroll();
+        // Inicializar
+        updateLanguageUI(currentLang);
+        applyTranslations(currentLang);
+        setupInfiniteScroll();
+
+        CMS.load().then(content => {
+            if (content) {
+                SITE = content;
+                applyTranslations(currentLang);
+            }
+            createCarousel();
         });
 
-        // Inicializar idioma
-        initLanguage();
+        // Vista previa en vivo desde /admin
+        CMS.onPreview((content, lang) => {
+            SITE = content;
+            if (lang && lang !== currentLang) changeLanguage(lang);
+            else applyTranslations(currentLang);
+            createCarousel();
+        });
     </script>
 </body>
 </html>

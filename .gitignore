@@ -12,3 +12,6 @@ Thumbs.db
 # Editores
 .vscode/
 .idea/
+
+# Dependencias
+node_modules/

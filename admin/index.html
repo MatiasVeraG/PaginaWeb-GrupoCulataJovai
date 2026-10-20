@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Panel — Grupo Culata Jovái</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body>
+    <!-- INGRESO -->
+    <main id="login" class="login" hidden>
+        <form id="loginForm" class="login-card">
+            <img src="/images/logo.png" alt="Grupo Culata Jovái Arquitectos" class="login-logo">
+            <h1>Panel de edición</h1>
+            <label class="field">
+                <span class="field-label">Usuario</span>
+                <input type="text" id="username" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+            </label>
+            <label class="field">
+                <span class="field-label">Contraseña</span>
+                <input type="password" id="password" autocomplete="current-password" required>
+            </label>
+            <p class="login-error" id="loginError" role="alert"></p>
+            <button type="submit" class="btn btn-primary btn-block">Ingresar</button>
+        </form>
+    </main>
+
+    <!-- PANEL -->
+    <div id="app" class="app" hidden>
+        <header class="topbar">
+            <div class="brand">
+                <img src="/images/logo.png" alt="" class="brand-logo">
+                <span class="brand-tag">Panel</span>
+            </div>
+            <nav class="views" id="viewTabs" aria-label="Vista a editar"></nav>
+            <div class="langs" id="langTabs" role="tablist" aria-label="Idioma"></div>
+            <div class="actions">
+                <span class="status" id="status"></span>
+                <button class="btn btn-ghost preview-toggle" id="previewToggle" type="button">Vista previa</button>
+                <button class="btn btn-ghost" id="historyBtn" type="button">Historial</button>
+                <button class="btn btn-ghost" id="discardBtn" type="button" hidden>Descartar</button>
+                <button class="btn btn-primary" id="publishBtn" type="button" disabled>Publicar</button>
+                <button class="btn btn-ghost" id="logoutBtn" type="button">Salir</button>
+            </div>
+        </header>
+
+        <div class="workspace">
+            <section class="editor" id="editor" aria-label="Editor"></section>
+            <section class="preview" aria-label="Vista previa">
+                <div class="preview-bar">
+                    <span class="preview-title">Vista previa <small>(sin publicar)</small></span>
+                    <div class="seg" id="deviceTabs">
+                        <button type="button" data-device="desktop" class="active">Compu</button>
+                        <button type="button" data-device="mobile">Celular</button>
+                    </div>
+                    <a class="preview-open" id="openSite" href="/" target="_blank" rel="noopener">Ver sitio publicado ↗</a>
+                </div>
+                <div class="preview-stage" id="previewStage">
+                    <div class="preview-frame" id="previewFrame">
+                        <iframe id="previewIframe" title="Vista previa del sitio"></iframe>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- HISTORIAL -->
+    <aside class="drawer" id="historyDrawer" hidden>
+        <div class="drawer-head">
+            <h2>Versiones publicadas</h2>
+            <button class="btn btn-ghost btn-icon" type="button" data-close aria-label="Cerrar">✕</button>
+        </div>
+        <p class="muted small">Se guardan las últimas 50 publicaciones. Restaurar una versión la vuelve a publicar.</p>
+        <ol class="history-list" id="historyList"></ol>
+    </aside>
+
+    <!-- EDITOR DE IMÁGENES -->
+    <dialog class="modal" id="imageModal"></dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script src="/admin/admin.js"></script>
+</body>
+</html>

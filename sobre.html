@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sobre el estudio — Grupo Culata Jovái Arquitectos</title>
-    <meta name="description" content="Conocé el estudio de arquitectura Grupo Culata Jovái. Nuestra visión, equipo y filosofía de diseño contemporáneo en Asunción, Paraguay.">
+    <meta name="description" id="cmsDescription" content="Conocé el estudio de arquitectura Grupo Culata Jovái. Nuestra visión, equipo y filosofía de diseño contemporáneo en Asunción, Paraguay.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -60,7 +60,7 @@
     <!-- HEADER -->
     <header class="landing-header" id="header">
         <div class="logo-text" onclick="window.location.href='index.html'">
-            <img src="images/logo.png" alt="Grupo Culata Jovái Arquitectos">
+            <img class="cms-logo" src="images/logo.png" alt="Grupo Culata Jovái Arquitectos">
         </div>
     </header>
 
@@ -68,9 +68,9 @@
     <section id="nosotros" class="about-simple-section fade-in">
         <h1 class="about-title" data-i18n="about-title">Sobre el estudio</h1>
         
-        <img src="images/about-la-cuadrita.jpg" alt="La Cuadrita — Grupo Culata Jovái. Foto: Renato Duria" class="about-image">
+        <img id="cmsAboutImage" src="images/about-la-cuadrita.jpg" alt="La Cuadrita — Grupo Culata Jovái. Foto: Renato Duria" class="about-image">
         
-        <div class="about-text">
+        <div class="about-text" id="cmsParagraphs">
             <p data-i18n="about-p1">Grupo Culata Jovái es un estudio de arquitectura y urbanismo con sede en Asunción, Paraguay. El estudio se dedica principalmente al diseño arquitectónico y urbano, así como a la construcción, extendiendo su práctica a actividades académicas, docencia, música y arte.</p>
             
             <p data-i18n="about-p2">Fundado en 2011 por Miguel Ángel (Miky) González Merlo, el estudio incorporó a Emmerick Braun como socio en 2017.</p>
@@ -91,7 +91,9 @@
     </div>
 
     <script src="script.js"></script>
+    <script src="cms.js"></script>
     <script>
+        // Textos por defecto (se reemplazan por lo que se edite en /admin)
         const translations = {
             es: { 
                 'about-title': 'Sobre el estudio',
@@ -119,40 +121,72 @@
             }
         };
 
+        let SITE = null;   // contenido publicado desde /admin
+        let currentLang = CMS.savedLang();
+
         function changeLanguage(lang) {
-            localStorage.setItem('selectedLanguage', lang);
+            currentLang = lang;
+            try { localStorage.setItem('selectedLanguage', lang); } catch (e) {}
             updateLanguageUI(lang);
             applyTranslations(lang);
         }
-        
         function updateLanguageUI(lang) {
             document.querySelectorAll('.lang-option').forEach(opt =>
                 opt.classList.toggle('active', opt.dataset.lang === lang)
             );
         }
-        
         function applyTranslations(lang) {
+            document.documentElement.lang = lang;
+            if (SITE) return applyContent(SITE, lang);
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.dataset.i18n;
                 if (translations[lang] && translations[lang][key]) {
-                    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
-                        el.placeholder = translations[lang][key];
-                    } else {
-                        el.textContent = translations[lang][key];
-                    }
+                    el.textContent = translations[lang][key];
                 }
             });
         }
-        
-        function initLanguage() {
-            const savedLang = localStorage.getItem('selectedLanguage') || 'es';
-            changeLanguage(savedLang);
-        }
+        function applyContent(c, lang) {
+            const t = v => CMS.tr(v, lang);
+            const s = c.sobre;
+            const title = t(s.title);
+            document.querySelector('[data-i18n="about-title"]').textContent = title;
+            document.title = title + ' — Grupo Culata Jovái Arquitectos';
+            document.getElementById('cmsDescription').setAttribute('content', t(s.description));
 
+            const img = document.getElementById('cmsAboutImage');
+            if (img.getAttribute('src') !== s.image.src) img.src = s.image.src;
+            img.alt = t(s.image.alt);
+
+            const box = document.getElementById('cmsParagraphs');
+            box.replaceChildren(...s.paragraphs
+                .map(p => t(p))
+                .filter(text => text.trim())
+                .map(text => {
+                    const el = document.createElement('p');
+                    el.textContent = text;
+                    return el;
+                }));
+
+            document.querySelectorAll('.cms-logo').forEach(logo => {
+                logo.src = c.global.logo.src;
+                logo.alt = c.global.logo.alt;
+            });
+        }
         document.addEventListener('DOMContentLoaded', () => {
-            initLanguage();
+            changeLanguage(currentLang);
             const sec = document.getElementById('nosotros');
             if (sec) sec.classList.add('active');
+            CMS.load().then(content => {
+                if (!content) return;
+                SITE = content;
+                applyTranslations(currentLang);
+            });
+            // Vista previa en vivo desde /admin
+            CMS.onPreview((content, lang) => {
+                SITE = content;
+                if (lang && lang !== currentLang) changeLanguage(lang);
+                else applyTranslations(currentLang);
+            });
         });
     </script>
 </body>

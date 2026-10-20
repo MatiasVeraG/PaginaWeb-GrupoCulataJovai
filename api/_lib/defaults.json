@@ -1,0 +1,180 @@
+{
+  "global": {
+    "logo": {
+      "src": "images/logo.png",
+      "alt": "Grupo Culata Jovái Arquitectos"
+    }
+  },
+  "home": {
+    "labels": {
+      "address": {
+        "es": "Dirección",
+        "en": "Address",
+        "de": "Adresse"
+      },
+      "phone": {
+        "es": "Teléfono",
+        "en": "Phone",
+        "de": "Telefon"
+      },
+      "about": {
+        "es": "Sobre",
+        "en": "About",
+        "de": "Über"
+      }
+    },
+    "address": {
+      "es": "Asunción, Paraguay",
+      "en": "Asunción, Paraguay",
+      "de": "Asunción, Paraguay"
+    },
+    "email": "contacto@culatajovai.com",
+    "phone": "+595 999 000 000",
+    "instagram": "https://www.instagram.com/culatajovai.arq/",
+    "facebook": "https://www.facebook.com/grupoculatajovai",
+    "carousel": [
+      {
+        "src": "images/carrusel/01-la-cuadrita-1.jpg",
+        "title": "La Cuadrita",
+        "pos": "50% 50%"
+      },
+      {
+        "src": "images/carrusel/02-edificio-carpinelli.jpg",
+        "title": "Edificio Carpinelli",
+        "pos": "50% 50%"
+      },
+      {
+        "src": "images/carrusel/03-vivienda-gt.jpg",
+        "title": "Vivienda GT",
+        "pos": "50% 50%"
+      },
+      {
+        "src": "images/carrusel/04-vivienda-los-mangos.jpg",
+        "title": "Vivienda Los Mangos",
+        "pos": "50% 50%"
+      },
+      {
+        "src": "images/carrusel/05-vivienda-los-mangos-2.jpg",
+        "title": "Vivienda Los Mangos II",
+        "pos": "50% 50%"
+      },
+      {
+        "src": "images/carrusel/06-casa-ilona.jpg",
+        "title": "Casa Ilona",
+        "pos": "50% 50%"
+      },
+      {
+        "src": "images/carrusel/07-petalo-de-estrellas.jpg",
+        "title": "Pétalo de Estrellas",
+        "pos": "50% 50%"
+      },
+      {
+        "src": "images/carrusel/08-estudio-ciudad-nueva.jpg",
+        "title": "Estudio Ciudad Nueva",
+        "pos": "50% 50%"
+      },
+      {
+        "src": "images/carrusel/09-la-cuadrita-2.jpg",
+        "title": "La Cuadrita",
+        "pos": "50% 50%"
+      },
+      {
+        "src": "images/carrusel/10-casita-suburbana.jpg",
+        "title": "Casita Suburbana",
+        "pos": "50% 50%"
+      },
+      {
+        "src": "images/carrusel/11-vivienda-aqua.jpg",
+        "title": "Vivienda Aqua",
+        "pos": "50% 50%"
+      },
+      {
+        "src": "images/carrusel/12-reforma-casa-serbia.jpg",
+        "title": "Reforma Casa Serbia",
+        "pos": "50% 50%"
+      },
+      {
+        "src": "images/carrusel/13-casa-para-un-malabarista.jpg",
+        "title": "Casa para un malabarista",
+        "pos": "50% 50%"
+      },
+      {
+        "src": "images/carrusel/14-pai-nu.jpg",
+        "title": "Pa´í Ñu",
+        "pos": "50% 50%"
+      },
+      {
+        "src": "images/carrusel/15-casa-miralago.jpg",
+        "title": "Casa Miralago",
+        "pos": "50% 50%"
+      },
+      {
+        "src": "images/carrusel/16-leo-i.jpg",
+        "title": "Leo I",
+        "pos": "50% 50%"
+      },
+      {
+        "src": "images/carrusel/17-obra-4g0a3836.jpg",
+        "title": "Grupo Culata Jovái",
+        "pos": "50% 50%"
+      },
+      {
+        "src": "images/carrusel/18-obra-dsc01602.jpg",
+        "title": "Grupo Culata Jovái",
+        "pos": "50% 50%"
+      },
+      {
+        "src": "images/carrusel/19-obra-57a6456.jpg",
+        "title": "Grupo Culata Jovái",
+        "pos": "50% 50%"
+      }
+    ]
+  },
+  "sobre": {
+    "title": {
+      "es": "Sobre el estudio",
+      "en": "About the studio",
+      "de": "Über das Studio"
+    },
+    "description": {
+      "es": "Conocé el estudio de arquitectura Grupo Culata Jovái. Nuestra visión, equipo y filosofía de diseño contemporáneo en Asunción, Paraguay.",
+      "en": "Meet Grupo Culata Jovái, an architecture studio in Asunción, Paraguay: our vision, team and approach to contemporary design.",
+      "de": "Lernen Sie Grupo Culata Jovái kennen, ein Architekturstudio in Asunción, Paraguay: unsere Vision, unser Team und unsere Haltung zu zeitgenössischem Entwerfen."
+    },
+    "image": {
+      "src": "images/about-la-cuadrita.jpg",
+      "alt": {
+        "es": "La Cuadrita — Grupo Culata Jovái. Foto: Renato Duria",
+        "en": "La Cuadrita — Grupo Culata Jovái. Photo: Renato Duria",
+        "de": "La Cuadrita — Grupo Culata Jovái. Foto: Renato Duria"
+      }
+    },
+    "paragraphs": [
+      {
+        "es": "Grupo Culata Jovái es un estudio de arquitectura y urbanismo con sede en Asunción, Paraguay. El estudio se dedica principalmente al diseño arquitectónico y urbano, así como a la construcción, extendiendo su práctica a actividades académicas, docencia, música y arte.",
+        "en": "Grupo Culata Jovái is an architecture and urbanism studio based in Asunción, Paraguay. The studio is primarily dedicated to architectural and urban design, as well as construction, extending its practice to academic activities, teaching, music, and art.",
+        "de": "Grupo Culata Jovái ist ein Architektur- und Städtebaustudio mit Sitz in Asunción, Paraguay. Das Studio widmet sich in erster Linie dem Architektur- und Städtebauentwurf sowie der Bauausführung und erweitert seine Praxis auf akademische Aktivitäten, Lehre, Musik und Kunst."
+      },
+      {
+        "es": "Fundado en 2011 por Miguel Ángel (Miky) González Merlo, el estudio incorporó a Emmerick Braun como socio en 2017.",
+        "en": "Founded in 2011 by Miguel Ángel (Miky) González Merlo, the studio welcomed Emmerick Braun as a partner in 2017.",
+        "de": "Gegründet im Jahr 2011 von Miguel Ángel (Miky) González Merlo, hieß das Studio 2017 Emmerick Braun als Partner willkommen."
+      },
+      {
+        "es": "Miguel Ángel (Miky) González Merlo es arquitecto por la Facultad de Arquitectura, Diseño y Arte de la Universidad Nacional de Asunción (FADA-UNA), donde también se ha desempeñado como docente. Además de su carrera arquitectónica, ha incursionado en la música como cantante, guitarrista y compositor en diversos proyectos musicales, destacándose Villagrán Bolaños.",
+        "en": "Miguel Ángel (Miky) González Merlo is an architect by the Facultad de Arquitectura, Diseño y Arte from the Universidad Nacional de Asunción (FADA-UNA), where he has also worked as a professor. In addition to his architectural career, he has ventured into music as a singer, guitarist, and composer in various musical projects, most notably Villagrán Bolaños.",
+        "de": "Miguel Ángel (Miky) González Merlo ist Architekt der Facultad de Arquitectura, Diseño y Arte der Universidad Nacional de Asunción (FADA-UNA), wo er auch als Professor tätig war. Zusätzlich zu seiner architektonischen Karriere ist er als Sänger, Gitarrist und Komponist in verschiedenen Musikprojekten aktiv, allen voran Villagrán Bolaños."
+      },
+      {
+        "es": "Emmerick Braun es arquitecto por la Facultad de Arquitectura, Diseño y Arte de la Universidad Nacional de Asunción (FADA-UNA) y posee un Máster en Estudios Avanzados en Arquitectura (MBArch) con especialidad en Urbanismo por la Escola Tècnica Superior d’Arquitectura de Barcelona (ETSAB-UPC). Actualmente enseña Diseño Urbano en la FADA-UNA.",
+        "en": "Emmerick Braun is an architect by the Facultad de Arquitectura, Diseño y Arte from the Universidad Nacional de Asunción (FADA-UNA) and holds a Master’s degree in Advanced Studies in Architecture (MBArch) with a specialization in Urbanism from the Escola Tècnica Superior d’Arquitectura de Barcelona (ETSAB-UPC). He currently teaches Urban Design at FADA-UNA.",
+        "de": "Emmerick Braun ist Architekt der Facultad de Arquitectura, Diseño y Arte der Universidad Nacional de Asunción (FADA-UNA) und hält einen Master-Abschluss in Advanced Studies in Architecture (MBArch) mit Spezialisierung auf Urbanismus der Escola Tècnica Superior d’Arquitectura de Barcelona (ETSAB-UPC). Zurzeit lehrt er Städtebau an der FADA-UNA."
+      },
+      {
+        "es": "Han sido invitados por numerosas instituciones para presentar el trabajo del estudio, el cual también ha recibido premios y ha sido expuesto y publicado tanto a nivel nacional como internacional.",
+        "en": "They have been invited to numerous institutions to present the studio’s work, which has also received awards and has been exhibited and published both nationally and internationally.",
+        "de": "Sie wurden von zahlreichen Institutionen eingeladen, die Arbeit des Studios zu präsentieren, welche zudem Auszeichnungen erhalten hat und national sowie international ausgestellt und veröffentlicht wurde."
+      }
+    ]
+  }
+}

@@ -1,4 +1,20 @@
 {
   "buildCommand": "echo 'Static site'",
-  "outputDirectory": "."
+  "outputDirectory": ".",
+  "rewrites": [
+    { "source": "/api/img/:file", "destination": "/api/img?file=:file" }
+  ],
+  "redirects": [
+    { "source": "/admin", "destination": "/admin/", "permanent": false }
+  ],
+  "headers": [
+    {
+      "source": "/admin/(.*)",
+      "headers": [
+        { "key": "X-Robots-Tag", "value": "noindex, nofollow" },
+        { "key": "Cache-Control", "value": "no-cache" },
+        { "key": "X-Frame-Options", "value": "DENY" }
+      ]
+    }
+  ]
 }
