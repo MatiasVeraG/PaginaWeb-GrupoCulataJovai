@@ -292,6 +292,7 @@
         const m = {
             file: null, decoded: null, info: null, result: null,
             pos: (options.current && options.current.pos) || '50% 50%',
+            fit: (options.current && options.current.fit) || (options.mode === 'focus' ? 'cover' : null),
             title: (options.current && options.current.title) || '',
             mime: spec.mime, quality: spec.quality, auto: true, maxLong: spec.maxLong,
             previewUrl: null, busy: false
@@ -310,7 +311,7 @@
             dlg.onclose = () => finish(null);
             dlg.oncancel = e => { if (m.busy) e.preventDefault(); };
 
-            const headTitle = options.mode === 'focus' ? 'Encuadre de la foto'
+            const headTitle = options.mode === 'focus' ? 'Disposición y encuadre'
                 : options.mode === 'replace' ? `Reemplazar: ${spec.name}` : `Nueva imagen: ${spec.name}`;
 
             function render() {
@@ -371,9 +372,10 @@
             function focalBox(src, checker) {
                 const [px, py] = m.pos.split(' ').map(parseFloat);
                 const img = h('img', { src, alt: '' });
-                const dot = spec.focal ? h('span', { class: 'dot', style: { left: px + '%', top: py + '%' } }) : null;
-                const box = h('div', { class: 'focal' + (checker ? ' checker' : '') }, img, dot);
-                if (spec.focal) {
+                const useFocal = spec.focal && m.fit !== 'contain';
+                const dot = useFocal ? h('span', { class: 'dot', style: { left: px + '%', top: py + '%' } }) : null;
+                const box = h('div', { class: 'focal' + (checker ? ' checker' : ''), style: useFocal ? null : { cursor: 'default' } }, img, dot);
+                if (useFocal) {
                     const setFrom = e => {
                         const r = img.getBoundingClientRect();
                         const x = Math.min(100, Math.max(0, ((e.clientX - r.left) / r.width) * 100));
@@ -394,9 +396,11 @@
             function renderCrops(src) {
                 if (!spec.crops) return null;
                 return h('div', null,
-                    h('p', { class: 'field-hint', style: { marginBottom: '6px' } }, 'Tocá o arrastrá sobre la foto para marcar lo más importante. Así se va a recortar:'),
-                    h('div', { class: 'crops' }, spec.crops.map(c => h('div', { class: 'crop' },
-                        h('div', { style: { width: Math.round(96 * c.ratio) + 'px' } }, h('img', { src, alt: '', style: { objectPosition: m.pos } })),
+                    h('p', { class: 'field-hint', style: { marginBottom: '6px' } }, m.fit === 'contain'
+                        ? 'La foto se ve entera, con márgenes blancos. Así se va a ver:'
+                        : 'Tocá o arrastrá sobre la foto para marcar lo más importante. Así se va a recortar:'),
+                    h('div', { class: 'crops' }, spec.crops.map(c => h('div', { class: 'crop' + (m.fit === 'contain' ? ' contain' : '') },
+                        h('div', { style: { width: Math.round(96 * c.ratio) + 'px' } }, h('img', { src, alt: '', style: { objectPosition: m.pos, objectFit: m.fit === 'contain' ? 'contain' : 'cover' } })),
                         h('span', null, c.label)
                     )))
                 );
@@ -441,7 +445,9 @@
 
                     const r = w / hh;
                     if (options.specKey === 'carousel') {
-                        if (r < 1) add('warn', [h('b', null, 'Foto vertical: '), 'en la compu se va a recortar mucho arriba y abajo. Preferí una toma horizontal o marcá bien el punto de enfoque.']);
+                        if (r < 1) add(m.fit === 'contain' ? 'info' : 'warn', [h('b', null, 'Foto vertical: '), m.fit === 'contain'
+                            ? 'con “Completa” se ve entera, con márgenes a los costados en la compu.'
+                            : 'con “Llenar” se recorta mucho arriba y abajo en la compu. Conviene “Completa”.']);
                         else if (Math.abs(r - spec.idealRatio) / spec.idealRatio > 0.12) add('info', [h('b', null, `Proporción ${ratioLabel(w, hh)}: `), 'funciona, pero se recorta distinto que el resto. Revisá los recortes de la izquierda.']);
                         else add('ok', [h('b', null, 'Proporción adecuada '), `(${ratioLabel(w, hh)}).`]);
                     } else if (r < 1) {
@@ -526,10 +532,24 @@
                     ));
             }
 
+            function renderFit() {
+                if (!spec.focal) return null;
+                const opt = (value, title, desc) => h('button', {
+                    type: 'button', class: 'fit-opt' + (m.fit === value ? ' active' : ''), 'aria-pressed': String(m.fit === value),
+                    onclick: () => { m.fit = value; render(); }
+                }, h('span', { class: 'fit-ic fit-ic-' + value }, h('span')), h('span', null, h('b', null, title), h('small', null, desc)));
+                return h('div', { class: 'block' },
+                    h('h4', null, 'Disposición'),
+                    h('div', { class: 'fit-opts' },
+                        opt('cover', 'Llenar', 'Ocupa toda la pantalla; se recorta lo que sobra.'),
+                        opt('contain', 'Completa', 'Se ve entera, con márgenes blancos.'))
+                );
+            }
+
             function renderSide() {
-                if (options.mode === 'focus') return [renderMeta(), renderRec()];
+                if (options.mode === 'focus') return [renderFit(), renderMeta()];
                 if (!m.decoded) return [renderRec(), renderPrep()];
-                return [renderAnalysis(), renderOptimize(), renderMeta()];
+                return [renderFit(), renderAnalysis(), renderOptimize(), renderMeta()];
             }
 
             function renderFoot() {
@@ -566,6 +586,7 @@
                         m.mime = m.info.transparent ? 'image/png' : 'image/webp';
                     }
                     m.previewUrl = URL.createObjectURL(file);
+                    if (spec.focal && !m.fit) m.fit = m.decoded.height > m.decoded.width ? 'contain' : 'cover';
                     if (!m.title && options.titleField) {
                         m.title = file.name.replace(/\.[^.]+$/, '').replace(/^\d+[-_ ]*/, '').replace(/[-_]+/g, ' ').trim();
                         m.title = m.title.charAt(0).toUpperCase() + m.title.slice(1);
@@ -600,7 +621,7 @@
 
             async function accept() {
                 if (options.mode === 'focus') {
-                    return finish({ src: options.current.src, pos: m.pos, title: m.title });
+                    return finish({ src: options.current.src, pos: m.pos, fit: m.fit, title: m.title });
                 }
                 if (m.result.blob.size > 3 * 1024 * 1024) {
                     toast('La imagen todavía pesa más de 3 MB. Bajá la calidad o el tamaño.', true);
@@ -615,7 +636,7 @@
                         body: { data, mime: m.result.mime, width: m.result.width, height: m.result.height, name: m.file.name }
                     });
                     m.busy = false;
-                    finish({ src: res.src, pos: m.pos, title: m.title, width: res.width, height: res.height, bytes: res.bytes });
+                    finish({ src: res.src, pos: m.pos, fit: m.fit || 'cover', title: m.title, width: res.width, height: res.height, bytes: res.bytes });
                 } catch (e) {
                     m.busy = false;
                     render();
@@ -754,10 +775,12 @@
 
         items.forEach((item, i) => {
             const flag = h('span', { class: 'flag', hidden: true });
-            const img = h('img', { src: '/' + item.src.replace(/^\//, ''), alt: '', loading: 'lazy', style: { objectPosition: item.pos || '50% 50%' } });
+            const fit = item.fit === 'contain' ? 'contain' : 'cover';
+            const img = h('img', { src: '/' + item.src.replace(/^\//, ''), alt: '', loading: 'lazy', style: { objectPosition: item.pos || '50% 50%', objectFit: fit } });
             auditImage(img, flag, SPECS.carousel);
+            const setFit = value => { item.fit = value; draftChanged(); renderEditor(); };
             const el = h('div', { class: 'list-item slide-item', draggable: true },
-                h('div', { class: 'slide-thumb', title: 'Arrastrá para reordenar' }, img, flag),
+                h('div', { class: 'slide-thumb' + (fit === 'contain' ? ' contain' : ''), title: 'Arrastrá para reordenar' }, img, flag),
                 h('div', { class: 'slide-body' },
                     h('div', { class: 'list-item-head' },
                         h('span', { class: 'num' }, `FOTO ${i + 1} DE ${items.length}`),
@@ -769,20 +792,23 @@
                         class: 'slide-title', style: { width: '100%', border: '1px solid var(--line-strong)', borderRadius: '6px', padding: '6px 9px' },
                         oninput: e => { item.title = e.target.value; draftChanged(); }
                     }),
+                    h('div', { class: 'seg seg-sm', role: 'group', 'aria-label': 'Disposición' },
+                        h('button', { type: 'button', class: fit === 'cover' ? 'active' : '', title: 'Ocupa toda la pantalla; se recorta lo que sobra', onclick: () => setFit('cover') }, 'Llenar'),
+                        h('button', { type: 'button', class: fit === 'contain' ? 'active' : '', title: 'Se ve entera, con márgenes blancos', onclick: () => setFit('contain') }, 'Completa')),
                     h('div', { class: 'slide-actions' },
                         h('button', {
                             class: 'btn btn-ghost btn-sm', type: 'button', onclick: async () => {
                                 const r = await openImageModal({ specKey: 'carousel', mode: 'focus', current: { ...item, src: '/' + item.src.replace(/^\//, '') }, titleField: TITLE_FIELD });
                                 if (!r) return;
-                                item.pos = r.pos; item.title = r.title;
+                                item.pos = r.pos; item.fit = r.fit; item.title = r.title;
                                 draftChanged(); renderEditor();
                             }
-                        }, 'Encuadre'),
+                        }, fit === 'cover' ? 'Encuadre' : 'Vista previa'),
                         h('button', {
                             class: 'btn btn-ghost btn-sm', type: 'button', onclick: async () => {
                                 const r = await openImageModal({ specKey: 'carousel', mode: 'replace', current: item, titleField: TITLE_FIELD });
                                 if (!r) return;
-                                Object.assign(item, { src: r.src, pos: r.pos, title: r.title });
+                                Object.assign(item, { src: r.src, pos: r.pos, fit: r.fit, title: r.title });
                                 draftChanged(); renderEditor();
                                 toast('Foto reemplazada. Apretá “Publicar” para que se vea en el sitio.');
                             }
@@ -807,13 +833,13 @@
         });
 
         return card('Carrusel de fotos', `${items.length} fotos · recomendado 2400 × 1600 px`,
-            h('p', { class: 'field-hint', style: { marginBottom: '12px' } }, 'Arrastrá las miniaturas para cambiar el orden. El nombre de la obra no se ve en la foto, pero lo usan Google y los lectores de pantalla (es igual en todos los idiomas).'),
+            h('p', { class: 'field-hint', style: { marginBottom: '12px' } }, 'Arrastrá las miniaturas para cambiar el orden. “Llenar” ocupa toda la pantalla y recorta; “Completa” muestra la foto entera con márgenes blancos (ideal para verticales). El nombre de la obra no se ve en la foto, pero lo usan Google y los lectores de pantalla (es igual en todos los idiomas).'),
             list,
             h('button', {
                 class: 'btn add-btn', type: 'button', onclick: async () => {
                     const r = await openImageModal({ specKey: 'carousel', mode: 'new', titleField: TITLE_FIELD });
                     if (!r) return;
-                    items.push({ src: r.src, title: r.title, pos: r.pos });
+                    items.push({ src: r.src, title: r.title, pos: r.pos, fit: r.fit });
                     draftChanged(); renderEditor();
                     toast('Foto agregada al final del carrusel.');
                 }

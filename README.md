@@ -14,7 +14,7 @@ para cambiar textos e imágenes de cada página, en los 3 idiomas (es / en / de)
 
 ## Panel de edición (`/admin`)
 
-Entrá a `https://<tu-dominio>/admin`, ingresá con el usuario **`culata jovai`** y la contraseña, y:
+Entrá a `https://<tu-dominio>/admin`, ingresá con el usuario **`admin`** y la contraseña, y:
 
 1. Elegí la **vista** arriba (Portada, Sobre el estudio, General).
 2. Elegí el **idioma** (ES / EN / DE). Un número rojo en el idioma indica cuántos textos faltan traducir.
@@ -59,7 +59,7 @@ En el proyecto de Vercel → **Settings → Environment Variables** (para *Produ
 |---|---|
 | `DATABASE_URL` | la URL pública de Railway del paso anterior |
 | `ADMIN_PASSWORD` | la contraseña del panel (larga, que no se use en otro lado) |
-| `ADMIN_USER` | *(opcional)* otro nombre de usuario; si no se pone, el usuario es `culata jovai` |
+| `ADMIN_USER` | *(opcional)* otro nombre de usuario; si no se pone, el usuario es `admin` |
 | `SESSION_SECRET` | *(opcional)* un texto largo al azar; si se cambia, se cierran todas las sesiones |
 
 Después hacé un **Redeploy** para que las tome.

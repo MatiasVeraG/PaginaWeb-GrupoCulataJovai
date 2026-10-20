@@ -515,6 +515,8 @@
                 img.alt = project.title || '';
                 img.decoding = 'async';
                 if (project.pos) img.style.objectPosition = project.pos;
+                // "Completa" muestra la foto entera (con márgenes); "Llenar" ocupa todo y recorta
+                img.style.objectFit = project.fit === 'contain' ? 'contain' : 'cover';
                 if (i === 1) img.fetchPriority = 'high';
                 else if (i > 2 && i < allProjects.length - 1) img.loading = 'lazy';
                 slide.appendChild(img);

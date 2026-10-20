@@ -18,12 +18,12 @@ function safeEqual(a, b) {
     return crypto.timingSafeEqual(ha, hb);
 }
 
-// Usuario: se puede cambiar con la variable ADMIN_USER (por defecto "culata jovai").
+// Usuario: se puede cambiar con la variable ADMIN_USER (por defecto "admin").
 // No distingue mayúsculas ni espacios de más.
 const normalizeUser = u => String(u || '').trim().replace(/\s+/g, ' ').toLowerCase();
 
 function adminUser() {
-    return normalizeUser(process.env.ADMIN_USER || 'culata jovai');
+    return normalizeUser(process.env.ADMIN_USER || 'admin');
 }
 
 function checkCredentials(username, password) {
