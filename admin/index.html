@@ -44,6 +44,7 @@
                 <button class="btn btn-ghost" id="historyBtn" type="button">Historial</button>
                 <button class="btn btn-ghost" id="discardBtn" type="button" hidden>Descartar</button>
                 <button class="btn btn-primary" id="publishBtn" type="button" disabled>Publicar</button>
+                <button class="btn btn-ghost" id="passwordBtn" type="button" title="Cambiar la contraseña del panel">Contraseña</button>
                 <button class="btn btn-ghost" id="logoutBtn" type="button">Salir</button>
             </div>
         </header>
@@ -90,6 +91,42 @@
         <p class="muted small">Se guardan las últimas 50 publicaciones. Restaurar una versión la vuelve a publicar.</p>
         <ol class="history-list" id="historyList"></ol>
     </aside>
+
+    <!-- CAMBIAR CONTRASEÑA -->
+    <dialog class="modal modal-sm" id="pwModal">
+        <form id="pwForm" class="modal-inner" novalidate>
+            <div class="modal-head">
+                <h2>Cambiar contraseña</h2>
+                <button class="btn btn-ghost btn-icon" type="button" data-close aria-label="Cerrar">✕</button>
+            </div>
+            <div class="pw-body">
+                <label class="field">
+                    <span class="field-label">Contraseña actual</span>
+                    <input type="password" id="pwCurrent" autocomplete="current-password" required>
+                </label>
+                <label class="field">
+                    <span class="field-label">Contraseña nueva</span>
+                    <input type="password" id="pwNext" autocomplete="new-password" minlength="10" required>
+                    <span class="pw-meter"><span id="pwMeterBar"></span></span>
+                    <span class="field-hint" id="pwHint">Al menos 10 caracteres. Mejor una frase fácil de recordar, por ejemplo “ladrillo-verde-asuncion”.</span>
+                </label>
+                <label class="field">
+                    <span class="field-label">Repetí la contraseña nueva</span>
+                    <input type="password" id="pwRepeat" autocomplete="new-password" required>
+                </label>
+                <label class="pw-show"><input type="checkbox" id="pwShow"> Mostrar contraseñas</label>
+                <p class="field-error" id="pwError" role="alert"></p>
+                <p class="muted small">Al cambiarla se cierran las sesiones abiertas en otras computadoras o celulares. Esta sesión sigue abierta.</p>
+            </div>
+            <div class="modal-foot">
+                <span></span>
+                <div style="display:flex;gap:8px">
+                    <button class="btn" type="button" data-close>Cancelar</button>
+                    <button class="btn btn-primary" type="submit" id="pwSubmit">Cambiar contraseña</button>
+                </div>
+            </div>
+        </form>
+    </dialog>
 
     <!-- EDITOR DE IMÁGENES -->
     <dialog class="modal" id="imageModal"></dialog>

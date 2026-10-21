@@ -453,6 +453,14 @@ a { color: inherit; }
 .pp-strip.big .pp-cards { align-items: center; }
 .pp-strip.big .pp-card { cursor: zoom-out; }
 
+/* Cambiar contraseña */
+.modal.modal-sm { width: min(440px, calc(100% - 24px)); }
+.pw-body { padding: 20px 22px; display: grid; gap: 14px; }
+.pw-show { display: flex; gap: 8px; align-items: center; font-size: 12.5px; color: var(--ink-2); cursor: pointer; }
+.pw-show input { accent-color: var(--ink); }
+.pw-meter { display: block; height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
+.pw-meter span { display: block; height: 100%; width: 0; background: var(--bad); transition: width .2s, background .2s; }
+
 /* Vista previa principal ampliada */
 .workspace.wide { grid-template-columns: 0 1fr; }
 .workspace.wide .editor { padding: 0; overflow: hidden; border: 0; }

@@ -1534,6 +1534,69 @@
         }
     });
 
+    // ------------------------------------------------------------------ cambiar contraseña
+    function passwordStrength(pw) {
+        let score = 0;
+        if (pw.length >= 10) score++;
+        if (pw.length >= 14) score++;
+        if (/[a-záéíóúñ]/.test(pw) && /[A-ZÁÉÍÓÚÑ]/.test(pw)) score++;
+        if (/\d/.test(pw)) score++;
+        if (/[^\wáéíóúñÁÉÍÓÚÑ]/.test(pw)) score++;
+        return Math.min(4, score);
+    }
+
+    function openPasswordModal() {
+        const dlg = $('#pwModal');
+        $('#pwForm').reset();
+        $('#pwError').textContent = '';
+        updateMeter();
+        ['#pwCurrent', '#pwNext', '#pwRepeat'].forEach(id => ($(id).type = 'password'));
+        dlg.showModal();
+        $('#pwCurrent').focus();
+    }
+
+    function updateMeter() {
+        const pw = $('#pwNext').value;
+        const score = pw.length < 10 ? Math.min(1, pw.length / 10) * 0.25 : passwordStrength(pw) / 4;
+        const bar = $('#pwMeterBar');
+        bar.style.width = Math.round(score * 100) + '%';
+        bar.style.background = pw.length < 10 ? 'var(--bad)' : score < 0.5 ? '#e6a23c' : 'var(--ok)';
+        $('#pwHint').textContent = pw.length === 0
+            ? 'Al menos 10 caracteres. Mejor una frase fácil de recordar, por ejemplo “ladrillo-verde-asuncion”.'
+            : pw.length < 10 ? `Faltan ${10 - pw.length} caracteres.`
+                : score < 0.5 ? 'Aceptable. Más larga o con números y símbolos es más segura.' : 'Buena contraseña.';
+    }
+
+    $('#passwordBtn').addEventListener('click', openPasswordModal);
+    $('#pwNext').addEventListener('input', updateMeter);
+    ['#pwCurrent', '#pwNext', '#pwRepeat'].forEach(id => $(id).addEventListener('input', () => ($('#pwError').textContent = '')));
+    $('#pwShow').addEventListener('change', e => {
+        ['#pwCurrent', '#pwNext', '#pwRepeat'].forEach(id => ($(id).type = e.target.checked ? 'text' : 'password'));
+    });
+    $('#pwModal').addEventListener('click', e => { if (e.target.closest('[data-close]')) $('#pwModal').close(); });
+    $('#pwForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        const current = $('#pwCurrent').value, next = $('#pwNext').value, repeat = $('#pwRepeat').value;
+        const err = $('#pwError');
+        if (!current) { err.textContent = 'Escribí la contraseña actual.'; return $('#pwCurrent').focus(); }
+        if (next.length < 10) { err.textContent = 'La contraseña nueva tiene que tener al menos 10 caracteres.'; return $('#pwNext').focus(); }
+        if (next !== repeat) { err.textContent = 'Las contraseñas nuevas no coinciden.'; return $('#pwRepeat').focus(); }
+        err.textContent = '';
+        const btn = $('#pwSubmit');
+        btn.disabled = true;
+        btn.textContent = 'Cambiando…';
+        try {
+            await api('/api/password', { method: 'POST', body: { current, next } });
+            $('#pwModal').close();
+            toast('Contraseña cambiada. Usala la próxima vez que ingreses.');
+        } catch (ex) {
+            err.textContent = ex.message;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Cambiar contraseña';
+        }
+    });
+
     $('#publishBtn').addEventListener('click', publish);
     $('#discardBtn').addEventListener('click', discard);
     $('#historyBtn').addEventListener('click', openHistory);

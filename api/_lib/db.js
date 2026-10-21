@@ -36,6 +36,11 @@ async function query(sql, params = []) {
                 note TEXT,
                 created_at TIMESTAMPTZ NOT NULL DEFAULT now()
             );
+            CREATE TABLE IF NOT EXISTS cj_settings (
+                key TEXT PRIMARY KEY,
+                value JSONB NOT NULL,
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+            );
             CREATE TABLE IF NOT EXISTS cj_images (
                 id TEXT PRIMARY KEY,
                 mime TEXT NOT NULL,

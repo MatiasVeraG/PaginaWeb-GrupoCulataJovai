@@ -26,7 +26,7 @@ module.exports = handler(async (req, res) => {
 
     if (req.method === 'PUT') {
         assertSameOrigin(req);
-        requireAuth(req);
+        await requireAuth(req);
         const body = await readJson(req, 2_000_000);
         const content = sanitize(body.content);
         const current = await getCurrent();

@@ -19,7 +19,7 @@ module.exports = handler(async (req, res) => {
         throw httpError(405, 'Método no permitido');
     }
     assertSameOrigin(req);
-    requireAuth(req);
+    await requireAuth(req);
     const body = await readJson(req, Math.ceil(MAX_BYTES * 1.4) + 10_000);
     const type = TYPES[body.mime];
     if (!type) throw httpError(400, 'Formato no admitido. Usá WebP, JPG, PNG o AVIF.');

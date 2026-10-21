@@ -73,9 +73,20 @@ En el proyecto de Vercel → **Settings → Environment Variables** (para *Produ
 | `DATABASE_URL` | la URL pública de Railway del paso anterior |
 | `ADMIN_PASSWORD` | la contraseña del panel (larga, que no se use en otro lado) |
 | `ADMIN_USER` | *(opcional)* otro nombre de usuario; si no se pone, el usuario es `admin` |
+| `RESET_ADMIN_PASSWORD` | *(solo para recuperar el acceso, ver abajo)* |
 | `SESSION_SECRET` | *(opcional)* un texto largo al azar; si se cambia, se cierran todas las sesiones |
 
 Después hacé un **Redeploy** para que las tome.
+
+### Contraseña del panel
+- **Cambiarla:** dentro del panel, botón **Contraseña** (arriba a la derecha). Se pide la actual y la nueva
+  (mínimo 10 caracteres). La nueva se guarda cifrada en la base de datos y desde ese momento es la única que sirve.
+  Al cambiarla se cierran las sesiones abiertas en otros dispositivos.
+- **No borres `ADMIN_PASSWORD` de Vercel:** aunque ya no sea la contraseña para entrar, se usa para firmar las sesiones
+  y como respaldo.
+- **Si alguien se olvida la contraseña:** en Vercel agregá la variable `RESET_ADMIN_PASSWORD` con el valor `1` y hacé
+  un Redeploy. Entrá con la contraseña de `ADMIN_PASSWORD`, **borrá `RESET_ADMIN_PASSWORD`**, hacé otro Redeploy y
+  cambiá la contraseña desde el panel.
 
 ### Cómo funciona
 - Mientras no se publique nada desde el panel, el sitio muestra el contenido escrito en los HTML.

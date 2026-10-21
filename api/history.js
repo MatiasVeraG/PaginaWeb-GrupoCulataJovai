@@ -5,7 +5,7 @@ const { requireAuth } = require('./_lib/auth');
 const { query } = require('./_lib/db');
 
 module.exports = handler(async (req, res) => {
-    requireAuth(req);
+    await requireAuth(req);
     if (req.method === 'GET') {
         const { rows } = await query('SELECT id, note, created_at FROM cj_content ORDER BY id DESC LIMIT 50');
         return send(res, 200, { versions: rows });
