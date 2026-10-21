@@ -281,6 +281,57 @@
         });
     }
 
+    // ------------------------------------------------------------------ disposición y encaje
+    // Medidas reales del área de fotos del carrusel (medidas en el sitio).
+    const FRAMES = [
+        { key: 'desktop', label: 'Compu', note: 'pantalla 1440 × 900', w: 1080, h: 900 },
+        { key: 'mobile', label: 'iPhone 15', note: 'Safari, 393 × 659', w: 393, h: 380 }
+    ];
+    const FITS = [
+        { value: 'cover', label: 'Llenar', desc: 'Ocupa todo el espacio; se recorta lo que sobra.' },
+        { value: 'contain', label: 'Completar', desc: 'Se ve entera; quedan márgenes blancos.' },
+        { value: 'height', label: 'Completar vertical', desc: 'Se ve todo el alto; los costados se recortan o quedan con margen.' },
+        { value: 'width', label: 'Completar horizontal', desc: 'Se ve todo el ancho; arriba y abajo se recortan o quedan con margen.' }
+    ];
+    const fitLabel = v => (FITS.find(f => f.value === v) || FITS[0]).label;
+
+    // Igual que en cms.js: traduce la disposición a object-fit según la forma de la foto y del espacio.
+    function fitMode(fit, iw, ih, fw, fh) {
+        if (fit === 'contain') return 'contain';
+        if (fit === 'height') return iw / ih > fw / fh ? 'cover' : 'contain';
+        if (fit === 'width') return iw / ih < fw / fh ? 'cover' : 'contain';
+        return 'cover';
+    }
+    const parsePos = pos => (pos || '50% 50%').split(' ').map(v => Math.min(100, Math.max(0, parseFloat(v) || 50)) / 100);
+
+    // Parte de la foto que se ve en un espacio (coordenadas 0–1 de la foto).
+    function visibleRect(fit, iw, ih, fw, fh, pos, zoom) {
+        const fm = fitMode(fit, iw, ih, fw, fh);
+        const s0 = fm === 'cover' ? Math.max(fw / iw, fh / ih) : Math.min(fw / iw, fh / ih);
+        const z = zoom || 1;
+        const vx = fw / (iw * s0 * z), vy = fh / (ih * s0 * z);
+        const [px, py] = parsePos(pos);
+        const axis = (v, p) => (v >= 1 ? [0, 1] : [p * (1 - v), v]);
+        const [left, width] = axis(vx, px);
+        const [top, height] = axis(vy, py);
+        return { left, top, width, height, vx, vy, marginX: vx > 1.001, marginY: vy > 1.001 };
+    }
+
+    // Aplica a una <img> la misma disposición que usa el sitio.
+    function applyLayout(img, item, fw, fh) {
+        const pos = item.pos || '50% 50%';
+        const z = item.zoom || 1;
+        img.style.objectPosition = pos;
+        img.style.transformOrigin = pos;
+        img.style.transform = z !== 1 ? `scale(${z})` : '';
+        const set = () => {
+            if (!img.naturalWidth) return;
+            img.style.objectFit = fitMode(item.fit, img.naturalWidth, img.naturalHeight, fw || img.parentElement.clientWidth, fh || img.parentElement.clientHeight);
+        };
+        img.style.objectFit = item.fit === 'contain' ? 'contain' : 'cover';
+        if (img.complete) set(); else img.addEventListener('load', set, { once: true });
+    }
+
     // ------------------------------------------------------------------ modal de imagen
     /**
      * openImageModal({ specKey, current: {src, pos, title}, mode: 'new'|'replace'|'focus', titleField })
@@ -293,6 +344,8 @@
             file: null, decoded: null, info: null, result: null,
             pos: (options.current && options.current.pos) || '50% 50%',
             fit: (options.current && options.current.fit) || (options.mode === 'focus' ? 'cover' : null),
+            zoom: (options.current && options.current.zoom) || 1,
+            nat: null, enlarged: null,
             title: (options.current && options.current.title) || '',
             mime: spec.mime, quality: spec.quality, auto: true, maxLong: spec.maxLong,
             previewUrl: null, busy: false
@@ -369,52 +422,175 @@
                 return h('div', { class: 'stage' }, drop, m.error ? h('p', { class: 'field-error' }, m.error) : null);
             }
 
-            function focalBox(src, checker) {
-                const [px, py] = m.pos.split(' ').map(parseFloat);
-                const img = h('img', { src, alt: '' });
-                const useFocal = spec.focal && m.fit !== 'contain';
-                const dot = useFocal ? h('span', { class: 'dot', style: { left: px + '%', top: py + '%' } }) : null;
-                const box = h('div', { class: 'focal' + (checker ? ' checker' : ''), style: useFocal ? null : { cursor: 'default' } }, img, dot);
-                if (useFocal) {
-                    const setFrom = e => {
-                        const r = img.getBoundingClientRect();
-                        const x = Math.min(100, Math.max(0, ((e.clientX - r.left) / r.width) * 100));
-                        const y = Math.min(100, Math.max(0, ((e.clientY - r.top) / r.height) * 100));
-                        m.pos = `${Math.round(x)}% ${Math.round(y)}%`;
-                        dot.style.left = Math.round(x) + '%';
-                        dot.style.top = Math.round(y) + '%';
-                        box.parentNode.querySelectorAll('.crop img').forEach(ci => (ci.style.objectPosition = m.pos));
-                    };
-                    let dragging = false;
-                    box.addEventListener('pointerdown', e => { dragging = true; box.setPointerCapture(e.pointerId); setFrom(e); });
-                    box.addEventListener('pointermove', e => dragging && setFrom(e));
-                    box.addEventListener('pointerup', () => (dragging = false));
+            // --- Recuadro de encaje: muestra qué parte de la foto se ve y se puede mover / agrandar.
+            function encajeStage(src) {
+                const img = h('img', { src, alt: '', draggable: false });
+                const wrap = h('div', { class: 'encaje-wrap' }, img);
+                const boxes = {};
+                if (spec.focal) {
+                    FRAMES.forEach(f => {
+                        const handle = h('span', { class: 'encaje-handle', title: 'Arrastrá para acercar o alejar' });
+                        const box = h('div', { class: 'encaje-box encaje-' + f.key, title: 'Arrastrá para mover el encuadre' },
+                            h('span', { class: 'encaje-tag' }, f.label), handle);
+                        boxes[f.key] = box;
+                        wrap.append(box);
+                        bindDrag(box, handle, f);
+                    });
+                    wrap.addEventListener('dblclick', resetEncaje);
                 }
-                return box;
+                const stage = h('div', { class: 'focal encaje' + (spec.logo ? ' checker' : '') }, wrap);
+                m.ui = { img, wrap, boxes };
+                const ready = () => {
+                    m.nat = { w: img.naturalWidth, h: img.naturalHeight };
+                    updateEncaje();
+                };
+                if (img.complete && img.naturalWidth) setTimeout(ready); else img.addEventListener('load', ready, { once: true });
+                return stage;
             }
 
-            function renderCrops(src) {
-                if (!spec.crops) return null;
+            function bindDrag(box, handle, frame) {
+                let start = null;
+                box.addEventListener('pointerdown', e => {
+                    if (!m.nat) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    box.setPointerCapture(e.pointerId);
+                    const r = m.ui.wrap.getBoundingClientRect();
+                    const vis = visibleRect(m.fit, m.nat.w, m.nat.h, frame.w, frame.h, m.pos, m.zoom);
+                    start = { x: e.clientX, y: e.clientY, r, vis, zoom: m.zoom, resize: e.target === handle };
+                    box.classList.add('dragging');
+                });
+                box.addEventListener('pointermove', e => {
+                    if (!start) return;
+                    const dx = (e.clientX - start.x) / start.r.width;
+                    const dy = (e.clientY - start.y) / start.r.height;
+                    if (start.resize) {
+                        // Agrandar/achicar el recuadro = menos/más zoom
+                        // Se usa el eje más ajustado: el recuadro visible mide (tamaño sin zoom) / zoom.
+                        const base = visibleRect(m.fit, m.nat.w, m.nat.h, frame.w, frame.h, m.pos, 1);
+                        const useX = base.vx <= base.vy;
+                        const ref = useX ? base.vx : base.vy;
+                        const cur = Math.max(0.05, useX ? start.vis.width + dx : start.vis.height + dy);
+                        m.zoom = Math.round(Math.min(4, Math.max(1, ref / cur)) * 100) / 100;
+                    } else {
+                        let [px, py] = parsePos(m.pos);
+                        const v = start.vis;
+                        if (v.vx < 1) px = Math.min(1, Math.max(0, (v.left + dx) / (1 - v.vx)));
+                        if (v.vy < 1) py = Math.min(1, Math.max(0, (v.top + dy) / (1 - v.vy)));
+                        m.pos = `${Math.round(px * 100)}% ${Math.round(py * 100)}%`;
+                    }
+                    updateEncaje();
+                });
+                const end = () => { start = null; box.classList.remove('dragging'); };
+                box.addEventListener('pointerup', end);
+                box.addEventListener('pointercancel', end);
+            }
+
+            function resetEncaje() {
+                m.pos = '50% 50%';
+                m.zoom = 1;
+                updateEncaje();
+            }
+
+            // Actualiza recuadros, zoom y vistas previas sin redibujar todo el modal.
+            function updateEncaje() {
+                if (!m.ui || !m.nat) return;
+                FRAMES.forEach(f => {
+                    const box = m.ui.boxes[f.key];
+                    if (!box) return;
+                    const v = visibleRect(m.fit, m.nat.w, m.nat.h, f.w, f.h, m.pos, m.zoom);
+                    Object.assign(box.style, { left: v.left * 100 + '%', top: v.top * 100 + '%', width: v.width * 100 + '%', height: v.height * 100 + '%' });
+                    box.classList.toggle('full', v.width >= 0.999 && v.height >= 0.999);
+                    box.classList.toggle('fixed-x', v.vx >= 1);
+                    box.classList.toggle('fixed-y', v.vy >= 1);
+                });
+                const z = dlg.querySelector('.zoom-range');
+                if (z) { z.value = String(Math.round(m.zoom * 100)); z.nextSibling.textContent = Math.round(m.zoom * 100) + ' %'; }
+                dlg.querySelectorAll('[data-frame] img').forEach(img => {
+                    const f = FRAMES.find(x => x.key === img.closest('[data-frame]').dataset.frame);
+                    applyLayout(img, { fit: m.fit, pos: m.pos, zoom: m.zoom }, f.w, f.h);
+                });
+                const info = dlg.querySelector('.encaje-info');
+                if (info) info.textContent = encajeSummary();
+            }
+
+            function encajeSummary() {
+                if (!m.nat) return '';
+                return FRAMES.map(f => {
+                    const v = visibleRect(m.fit, m.nat.w, m.nat.h, f.w, f.h, m.pos, m.zoom);
+                    const shown = Math.round(Math.min(1, v.width) * Math.min(1, v.height) * 100);
+                    const margins = v.marginX ? ' · márgenes a los costados' : v.marginY ? ' · márgenes arriba y abajo' : '';
+                    return `${f.label}: se ve el ${shown} % de la foto${margins}`;
+                }).join('   ·   ');
+            }
+
+            function devicePreviews(src) {
+                if (!spec.focal) return null;
+                const card = (f, big) => {
+                    const img = h('img', { src, alt: '' });
+                    const height = big ? Math.min(window.innerHeight * 0.62, f.key === 'mobile' ? 560 : 520) : 150;
+                    const frameEl = h('div', { class: 'device-frame ' + f.key, 'data-frame': f.key, style: { height: height + 'px', width: Math.round(height * f.w / f.h) + 'px' } }, img);
+                    applyLayout(img, { fit: m.fit, pos: m.pos, zoom: m.zoom }, f.w, f.h);
+                    return h('figure', { class: 'device-preview' + (big ? ' big' : '') },
+                        frameEl,
+                        h('figcaption', null, h('b', null, f.label), h('span', null, f.note),
+                            big ? null : h('button', {
+                                class: 'btn btn-ghost btn-sm', type: 'button', title: 'Ver más grande',
+                                onclick: () => { m.enlarged = f.key; render(); }
+                            }, '⤢ Agrandar')));
+                };
+                if (m.enlarged) {
+                    const f = FRAMES.find(x => x.key === m.enlarged);
+                    return h('div', { class: 'device-zoom' },
+                        h('div', { class: 'device-zoom-bar' },
+                            h('span', null, `Vista previa ampliada — ${f.label}`),
+                            h('div', { class: 'seg' }, FRAMES.map(x => h('button', { type: 'button', class: x.key === f.key ? 'active' : '', onclick: () => { m.enlarged = x.key; render(); } }, x.label))),
+                            h('button', { class: 'btn btn-sm', type: 'button', onclick: () => { m.enlarged = null; render(); } }, '✕ Cerrar')),
+                        card(f, true));
+                }
                 return h('div', null,
-                    h('p', { class: 'field-hint', style: { marginBottom: '6px' } }, m.fit === 'contain'
-                        ? 'La foto se ve entera, con márgenes blancos. Así se va a ver:'
-                        : 'Tocá o arrastrá sobre la foto para marcar lo más importante. Así se va a recortar:'),
-                    h('div', { class: 'crops' }, spec.crops.map(c => h('div', { class: 'crop' + (m.fit === 'contain' ? ' contain' : '') },
-                        h('div', { style: { width: Math.round(96 * c.ratio) + 'px' } }, h('img', { src, alt: '', style: { objectPosition: m.pos, objectFit: m.fit === 'contain' ? 'contain' : 'cover' } })),
-                        h('span', null, c.label)
-                    )))
-                );
+                    h('p', { class: 'field-hint', style: { marginBottom: '8px' } }, 'Así se va a ver en el sitio:'),
+                    h('div', { class: 'device-previews' }, FRAMES.map(f => card(f, false))));
+            }
+
+            function encajeHelp() {
+                if (!spec.focal) return null;
+                return h('div', { class: 'encaje-help' },
+                    h('div', { class: 'encaje-controls' },
+                        h('label', { class: 'range-row' },
+                            h('span', { class: 'field-label' }, 'Zoom'),
+                            h('input', { type: 'range', class: 'zoom-range', min: 100, max: 400, step: 5, value: String(Math.round(m.zoom * 100)),
+                                oninput: e => { m.zoom = Number(e.target.value) / 100; updateEncaje(); } }),
+                            h('output', { style: { width: '48px' } }, Math.round(m.zoom * 100) + ' %')),
+                        h('button', { class: 'btn btn-sm', type: 'button', onclick: resetEncaje }, 'Restablecer encuadre')),
+                    h('p', { class: 'encaje-info' }));
+            }
+
+            function encajeHow() {
+                if (!spec.focal) return null;
+                return h('details', { class: 'encaje-how', open: true },
+                        h('summary', null, 'Cómo ajustar el encuadre'),
+                        h('ul', null,
+                            h('li', null, h('b', null, 'Recuadro negro: '), 'lo que se ve en la compu. ', h('b', null, 'Recuadro rojo punteado: '), 'lo que se ve en el iPhone. Lo que queda afuera (más oscuro) no se ve.'),
+                            h('li', null, h('b', null, 'Mover: '), 'arrastrá cualquiera de los recuadros para elegir qué parte de la foto se muestra.'),
+                            h('li', null, h('b', null, 'Acercar: '), 'arrastrá la esquina ◢ de un recuadro hacia adentro, o usá el control de Zoom.'),
+                            h('li', null, h('b', null, 'Por defecto: '), 'centrado y sin zoom. Doble clic sobre la foto o “Restablecer encuadre” vuelve a eso.'),
+                            h('li', null, 'Si un recuadro ocupa toda la foto, en ese dispositivo se ve entera; según la disposición pueden quedar márgenes blancos.')));
             }
 
             function renderFocusStage(src) {
-                return h('div', { class: 'stage' }, focalBox(src), renderCrops(src));
+                if (m.enlarged) return h('div', { class: 'stage' }, devicePreviews(src));
+                return h('div', { class: 'stage' }, encajeStage(src), encajeHelp(), devicePreviews(src), encajeHow());
             }
 
             function renderStage() {
                 const src = m.previewUrl;
+                if (m.enlarged) return h('div', { class: 'stage' }, devicePreviews(src));
                 return h('div', { class: 'stage' },
-                    focalBox(src, spec.logo),
-                    renderCrops(src),
+                    encajeStage(src),
+                    encajeHelp(),
+                    devicePreviews(src),
+                    encajeHow(),
                     m.result ? h('div', { class: 'compare muted' },
                         h('span', null, `Original: ${m.decoded.width} × ${m.decoded.height} px · ${fmtBytes(m.file.size)}`),
                         h('span', null, '→'),
@@ -445,9 +621,12 @@
 
                     const r = w / hh;
                     if (options.specKey === 'carousel') {
-                        if (r < 1) add(m.fit === 'contain' ? 'info' : 'warn', [h('b', null, 'Foto vertical: '), m.fit === 'contain'
-                            ? 'con “Completa” se ve entera, con márgenes a los costados en la compu.'
-                            : 'con “Llenar” se recorta mucho arriba y abajo en la compu. Conviene “Completa”.']);
+                        if (r < 1) {
+                            const crops = m.fit === 'cover' || m.fit === 'width';
+                            add(crops ? 'warn' : 'info', [h('b', null, 'Foto vertical: '), crops
+                                ? `con “${fitLabel(m.fit)}” se recorta mucho arriba y abajo. Conviene “Completar” o “Completar vertical”, o mové el recuadro para elegir qué parte se ve.`
+                                : `con “${fitLabel(m.fit)}” se ve todo el alto, con márgenes blancos a los costados.`]);
+                        }
                         else if (Math.abs(r - spec.idealRatio) / spec.idealRatio > 0.12) add('info', [h('b', null, `Proporción ${ratioLabel(w, hh)}: `), 'funciona, pero se recorta distinto que el resto. Revisá los recortes de la izquierda.']);
                         else add('ok', [h('b', null, 'Proporción adecuada '), `(${ratioLabel(w, hh)}).`]);
                     } else if (r < 1) {
@@ -534,16 +713,13 @@
 
             function renderFit() {
                 if (!spec.focal) return null;
-                const opt = (value, title, desc) => h('button', {
-                    type: 'button', class: 'fit-opt' + (m.fit === value ? ' active' : ''), 'aria-pressed': String(m.fit === value),
-                    onclick: () => { m.fit = value; render(); }
-                }, h('span', { class: 'fit-ic fit-ic-' + value }, h('span')), h('span', null, h('b', null, title), h('small', null, desc)));
+                const opt = f => h('button', {
+                    type: 'button', class: 'fit-opt' + (m.fit === f.value ? ' active' : ''), 'aria-pressed': String(m.fit === f.value),
+                    onclick: () => { m.fit = f.value; render(); }
+                }, h('span', { class: 'fit-ic fit-ic-' + f.value }, h('span')), h('span', null, h('b', null, f.label), h('small', null, f.desc)));
                 return h('div', { class: 'block' },
                     h('h4', null, 'Disposición'),
-                    h('div', { class: 'fit-opts' },
-                        opt('cover', 'Llenar', 'Ocupa toda la pantalla; se recorta lo que sobra.'),
-                        opt('contain', 'Completa', 'Se ve entera, con márgenes blancos.'))
-                );
+                    h('div', { class: 'fit-opts' }, FITS.map(opt)));
             }
 
             function renderSide() {
@@ -565,6 +741,7 @@
             }
 
             function resetFile() {
+                m.nat = null; m.ui = null; m.enlarged = null;
                 if (m.previewUrl) URL.revokeObjectURL(m.previewUrl);
                 if (m.decoded && m.decoded.source.close) m.decoded.source.close();
                 Object.assign(m, { file: null, decoded: null, info: null, result: null, previewUrl: null, error: null });
@@ -621,7 +798,7 @@
 
             async function accept() {
                 if (options.mode === 'focus') {
-                    return finish({ src: options.current.src, pos: m.pos, fit: m.fit, title: m.title });
+                    return finish({ src: options.current.src, pos: m.pos, fit: m.fit, zoom: m.zoom, title: m.title });
                 }
                 if (m.result.blob.size > 3 * 1024 * 1024) {
                     toast('La imagen todavía pesa más de 3 MB. Bajá la calidad o el tamaño.', true);
@@ -636,7 +813,7 @@
                         body: { data, mime: m.result.mime, width: m.result.width, height: m.result.height, name: m.file.name }
                     });
                     m.busy = false;
-                    finish({ src: res.src, pos: m.pos, fit: m.fit || 'cover', title: m.title, width: res.width, height: res.height, bytes: res.bytes });
+                    finish({ src: res.src, pos: m.pos, fit: m.fit || 'cover', zoom: m.zoom, title: m.title, width: res.width, height: res.height, bytes: res.bytes });
                 } catch (e) {
                     m.busy = false;
                     render();
@@ -775,12 +952,13 @@
 
         items.forEach((item, i) => {
             const flag = h('span', { class: 'flag', hidden: true });
-            const fit = item.fit === 'contain' ? 'contain' : 'cover';
-            const img = h('img', { src: '/' + item.src.replace(/^\//, ''), alt: '', loading: 'lazy', style: { objectPosition: item.pos || '50% 50%', objectFit: fit } });
+            const fit = FITS.some(f => f.value === item.fit) ? item.fit : 'cover';
+            const img = h('img', { src: '/' + item.src.replace(/^\//, ''), alt: '', loading: 'lazy' });
+            applyLayout(img, item, FRAMES[0].w, FRAMES[0].h);
             auditImage(img, flag, SPECS.carousel);
             const setFit = value => { item.fit = value; draftChanged(); renderEditor(); };
             const el = h('div', { class: 'list-item slide-item', draggable: true },
-                h('div', { class: 'slide-thumb' + (fit === 'contain' ? ' contain' : ''), title: 'Arrastrá para reordenar' }, img, flag),
+                h('div', { class: 'slide-thumb' + (fit !== 'cover' ? ' contain' : ''), title: 'Arrastrá para reordenar' }, img, flag),
                 h('div', { class: 'slide-body' },
                     h('div', { class: 'list-item-head' },
                         h('span', { class: 'num' }, `FOTO ${i + 1} DE ${items.length}`),
@@ -792,23 +970,24 @@
                         class: 'slide-title', style: { width: '100%', border: '1px solid var(--line-strong)', borderRadius: '6px', padding: '6px 9px' },
                         oninput: e => { item.title = e.target.value; draftChanged(); }
                     }),
-                    h('div', { class: 'seg seg-sm', role: 'group', 'aria-label': 'Disposición' },
-                        h('button', { type: 'button', class: fit === 'cover' ? 'active' : '', title: 'Ocupa toda la pantalla; se recorta lo que sobra', onclick: () => setFit('cover') }, 'Llenar'),
-                        h('button', { type: 'button', class: fit === 'contain' ? 'active' : '', title: 'Se ve entera, con márgenes blancos', onclick: () => setFit('contain') }, 'Completa')),
+                    h('label', { class: 'fit-select' },
+                        h('span', null, 'Disposición'),
+                        h('select', { 'aria-label': 'Disposición', onchange: e => setFit(e.target.value) },
+                            FITS.map(f => h('option', { value: f.value, selected: f.value === fit, title: f.desc }, f.label)))),
                     h('div', { class: 'slide-actions' },
                         h('button', {
                             class: 'btn btn-ghost btn-sm', type: 'button', onclick: async () => {
                                 const r = await openImageModal({ specKey: 'carousel', mode: 'focus', current: { ...item, src: '/' + item.src.replace(/^\//, '') }, titleField: TITLE_FIELD });
                                 if (!r) return;
-                                item.pos = r.pos; item.fit = r.fit; item.title = r.title;
+                                item.pos = r.pos; item.fit = r.fit; item.zoom = r.zoom; item.title = r.title;
                                 draftChanged(); renderEditor();
                             }
-                        }, fit === 'cover' ? 'Encuadre' : 'Vista previa'),
+                        }, 'Encuadre'),
                         h('button', {
                             class: 'btn btn-ghost btn-sm', type: 'button', onclick: async () => {
                                 const r = await openImageModal({ specKey: 'carousel', mode: 'replace', current: item, titleField: TITLE_FIELD });
                                 if (!r) return;
-                                Object.assign(item, { src: r.src, pos: r.pos, fit: r.fit, title: r.title });
+                                Object.assign(item, { src: r.src, pos: r.pos, fit: r.fit, zoom: r.zoom, title: r.title });
                                 draftChanged(); renderEditor();
                                 toast('Foto reemplazada. Apretá “Publicar” para que se vea en el sitio.');
                             }
@@ -833,13 +1012,13 @@
         });
 
         return card('Carrusel de fotos', `${items.length} fotos · recomendado 2400 × 1600 px`,
-            h('p', { class: 'field-hint', style: { marginBottom: '12px' } }, 'Arrastrá las miniaturas para cambiar el orden. “Llenar” ocupa toda la pantalla y recorta; “Completa” muestra la foto entera con márgenes blancos (ideal para verticales). El nombre de la obra no se ve en la foto, pero lo usan Google y los lectores de pantalla (es igual en todos los idiomas).'),
+            h('p', { class: 'field-hint', style: { marginBottom: '12px' } }, 'Arrastrá las miniaturas para cambiar el orden. Elegí la disposición de cada foto (Llenar, Completar, Completar vertical u horizontal) y tocá “Encuadre” para mover el recuadro o hacer zoom. El nombre de la obra no se ve en la foto, pero lo usan Google y los lectores de pantalla (es igual en todos los idiomas).'),
             list,
             h('button', {
                 class: 'btn add-btn', type: 'button', onclick: async () => {
                     const r = await openImageModal({ specKey: 'carousel', mode: 'new', titleField: TITLE_FIELD });
                     if (!r) return;
-                    items.push({ src: r.src, title: r.title, pos: r.pos, fit: r.fit });
+                    items.push({ src: r.src, title: r.title, pos: r.pos, fit: r.fit, zoom: r.zoom });
                     draftChanged(); renderEditor();
                     toast('Foto agregada al final del carrusel.');
                 }
@@ -1242,6 +1421,11 @@
     $('#previewToggle').addEventListener('click', () => {
         const shown = $('#app').classList.toggle('show-preview');
         $('#previewToggle').textContent = shown ? 'Cerrar vista previa' : 'Vista previa';
+        requestAnimationFrame(layoutPreview);
+    });
+    $('#widePreview').addEventListener('click', () => {
+        const wide = document.querySelector('.workspace').classList.toggle('wide');
+        $('#widePreview').textContent = wide ? '⤡ Volver al editor' : '⤢ Ampliar';
         requestAnimationFrame(layoutPreview);
     });
     $('#deviceTabs').addEventListener('click', e => {

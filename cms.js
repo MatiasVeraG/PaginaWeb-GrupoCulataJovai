@@ -46,5 +46,34 @@
         }
     }
 
-    window.CMS = { LANGS, tr, load, onPreview, telHref, savedLang, inAdminPreview };
+    // Disposición de una foto dentro de su espacio:
+    //   cover   = Llenar (ocupa todo, recorta)
+    //   contain = Completar (entera, con márgenes)
+    //   height  = Completar vertical (todo el alto visible)
+    //   width   = Completar horizontal (todo el ancho visible)
+    function fitMode(fit, iw, ih, fw, fh) {
+        if (fit === 'contain') return 'contain';
+        if (fit === 'height') return iw / ih > fw / fh ? 'cover' : 'contain';
+        if (fit === 'width') return iw / ih < fw / fh ? 'cover' : 'contain';
+        return 'cover';
+    }
+
+    // Aplica disposición, encuadre (pos) y zoom a una <img>. Devuelve una función para recalcular al cambiar el tamaño.
+    function layoutImage(img, item) {
+        const pos = item.pos || '50% 50%';
+        const zoom = Number(item.zoom) || 1;
+        img.style.objectPosition = pos;
+        img.style.transformOrigin = pos;
+        img.style.transform = zoom !== 1 ? 'scale(' + zoom + ')' : '';
+        img.style.objectFit = item.fit === 'contain' ? 'contain' : 'cover';
+        const update = () => {
+            const box = img.parentElement;
+            if (!img.naturalWidth || !box || !box.clientHeight) return;
+            img.style.objectFit = fitMode(item.fit, img.naturalWidth, img.naturalHeight, box.clientWidth, box.clientHeight);
+        };
+        if (img.complete) update(); else img.addEventListener('load', update, { once: true });
+        return update;
+    }
+
+    window.CMS = { LANGS, tr, load, onPreview, telHref, savedLang, inAdminPreview, fitMode, layoutImage };
 })();

@@ -31,7 +31,17 @@ Al cambiar o agregar una imagen, el panel:
 - muestra el **tamaño recomendado** para ese lugar y los pasos a seguir en el editor de fotos antes de subirla;
 - **analiza el archivo** (resolución, proporción, peso, perfil de color, metadatos) y avisa si es chica, vertical o pesada;
 - la **optimiza automáticamente** en el navegador: corrige la rotación, la achica al tamaño justo, elimina metadatos (GPS, cámara), la pasa a sRGB y la comprime en WebP;
-- en el carrusel deja marcar el **punto de enfoque**, con una vista de cómo se recorta en compu y en celular.
+- en el carrusel, cada foto tiene una **disposición**:
+  - **Llenar**: ocupa todo el espacio y recorta lo que sobra.
+  - **Completar**: se ve entera, con márgenes blancos.
+  - **Completar vertical**: se ve todo el alto; los costados se recortan o quedan con margen.
+  - **Completar horizontal**: se ve todo el ancho; arriba y abajo se recortan o quedan con margen.
+
+  Al subir una foto vertical se elige "Completar" automáticamente; se puede cambiar en cualquier momento.
+- con **Encuadre** se ve el **recuadro de encaje** sobre la foto: el negro es lo que se ve en la compu (pantalla 1440 × 900)
+  y el rojo punteado lo que se ve en un iPhone 15. Se arrastra para mover el encuadre y desde la esquina para hacer zoom.
+  Por defecto queda centrado y sin zoom (doble clic o "Restablecer encuadre" vuelve a eso).
+- las vistas previas de Compu e iPhone se pueden **agrandar**, y la vista previa principal tiene el botón **Ampliar**.
 
 | Lugar | Tamaño recomendado | Peso final |
 |---|---|---|

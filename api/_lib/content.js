@@ -42,7 +42,8 @@ function sanitize(input) {
             src: imgSrc(item && item.src, null),
             title: clean(item && item.title, 200),
             pos: pos(item && item.pos),
-            fit: item && item.fit === 'contain' ? 'contain' : 'cover'
+            fit: ['cover', 'contain', 'height', 'width'].includes(item && item.fit) ? item.fit : 'cover',
+            zoom: Math.round(Math.min(4, Math.max(1, Number(item && item.zoom) || 1)) * 100) / 100
         }))
         .filter(item => item.src);
     if (!carousel.length) throw httpError(400, 'El carrusel necesita al menos una foto');

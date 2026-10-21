@@ -433,6 +433,8 @@
         let SITE = null;          // contenido publicado desde /admin
         let currentLang = CMS.savedLang();
         let renderedCarousel = '';
+        let layoutUpdaters = [];
+        window.addEventListener('resize', () => layoutUpdaters.forEach(fn => fn()));
 
         function changeLanguage(lang) {
             currentLang = lang;
@@ -502,6 +504,7 @@
 
             const container = document.getElementById('carouselContainer');
             container.innerHTML = '';
+            layoutUpdaters = [];
             if (!projects.length) return;
 
             // Clonar último elemento al inicio y el primer elemento al final para efecto infinito
@@ -514,13 +517,13 @@
                 img.src = project.src;
                 img.alt = project.title || '';
                 img.decoding = 'async';
-                if (project.pos) img.style.objectPosition = project.pos;
-                // "Completa" muestra la foto entera (con márgenes); "Llenar" ocupa todo y recorta
-                img.style.objectFit = project.fit === 'contain' ? 'contain' : 'cover';
+                slide.style.overflow = 'hidden';
                 if (i === 1) img.fetchPriority = 'high';
                 else if (i > 2 && i < allProjects.length - 1) img.loading = 'lazy';
                 slide.appendChild(img);
                 container.appendChild(slide);
+                // Disposición (Llenar / Completar / Completar vertical / horizontal), encuadre y zoom
+                layoutUpdaters.push(CMS.layoutImage(img, project));
             });
 
             // Establecer posición inicial en el primer elemento real (saltando el clon)
