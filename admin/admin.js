@@ -1534,6 +1534,33 @@
         }
     });
 
+    // ------------------------------------------------------------------ ojito para ver la contraseña
+    const EYE = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+    const EYE_OFF = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.8 10.8 0 0 1 12 5c6.4 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.2"/><path d="M6.6 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7a9.9 9.9 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
+
+    function setPasswordVisible(input, visible) {
+        input.type = visible ? 'text' : 'password';
+        const btn = input.parentElement.querySelector('.pw-eye');
+        if (!btn) return;
+        btn.innerHTML = visible ? EYE_OFF : EYE;
+        btn.setAttribute('aria-label', visible ? 'Ocultar contraseña' : 'Mostrar contraseña');
+        btn.title = visible ? 'Ocultar contraseña' : 'Mostrar contraseña';
+        btn.setAttribute('aria-pressed', String(visible));
+    }
+
+    // Agrega el botón del ojo a todos los campos de contraseña
+    document.querySelectorAll('input[type=password]').forEach(input => {
+        const wrap = h('span', { class: 'pw-wrap' });
+        input.parentNode.insertBefore(wrap, input);
+        const btn = h('button', { type: 'button', class: 'pw-eye', tabindex: '0' });
+        btn.addEventListener('click', () => {
+            setPasswordVisible(input, input.type === 'password');
+            input.focus();
+        });
+        wrap.append(input, btn);
+        setPasswordVisible(input, false);
+    });
+
     // ------------------------------------------------------------------ cambiar contraseña
     function passwordStrength(pw) {
         let score = 0;
@@ -1550,7 +1577,7 @@
         $('#pwForm').reset();
         $('#pwError').textContent = '';
         updateMeter();
-        ['#pwCurrent', '#pwNext', '#pwRepeat'].forEach(id => ($(id).type = 'password'));
+        ['#pwCurrent', '#pwNext', '#pwRepeat'].forEach(id => setPasswordVisible($(id), false));
         dlg.showModal();
         $('#pwCurrent').focus();
     }
@@ -1570,9 +1597,6 @@
     $('#passwordBtn').addEventListener('click', openPasswordModal);
     $('#pwNext').addEventListener('input', updateMeter);
     ['#pwCurrent', '#pwNext', '#pwRepeat'].forEach(id => $(id).addEventListener('input', () => ($('#pwError').textContent = '')));
-    $('#pwShow').addEventListener('change', e => {
-        ['#pwCurrent', '#pwNext', '#pwRepeat'].forEach(id => ($(id).type = e.target.checked ? 'text' : 'password'));
-    });
     $('#pwModal').addEventListener('click', e => { if (e.target.closest('[data-close]')) $('#pwModal').close(); });
     $('#pwForm').addEventListener('submit', async e => {
         e.preventDefault();
@@ -1590,7 +1614,13 @@
             $('#pwModal').close();
             toast('Contraseña cambiada. Usala la próxima vez que ingreses.');
         } catch (ex) {
-            err.textContent = ex.message;
+            if (ex.status === 401) {
+                // La sesión venció: se cierra este cuadro y se muestra el ingreso
+                $('#pwModal').close();
+                showLogin('Tu sesión venció. Ingresá de nuevo y volvé a cambiar la contraseña.');
+            } else {
+                err.textContent = ex.message;
+            }
         } finally {
             btn.disabled = false;
             btn.textContent = 'Cambiar contraseña';

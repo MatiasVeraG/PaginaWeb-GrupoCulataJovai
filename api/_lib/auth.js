@@ -114,9 +114,12 @@ async function isAuthed(req) {
     if (!raw) return false;
     const [exp, sig] = raw.split('.');
     if (!exp || !sig || Number(exp) < Date.now() / 1000) return false;
-    let version;
-    try { version = versionOf(await getStoredPassword()); } catch (e) { return false; }
-    return safeEqual(sig, sign(exp + '.' + version));
+    let stored;
+    try { stored = await getStoredPassword(); } catch (e) { return false; }
+    if (safeEqual(sig, sign(exp + '.' + versionOf(stored)))) return true;
+    // Sesiones abiertas antes de esta versión del panel (firma sin versión):
+    // siguen valiendo mientras la contraseña no se haya cambiado desde el panel.
+    return !stored && safeEqual(sig, sign(exp));
 }
 
 async function requireAuth(req) {
