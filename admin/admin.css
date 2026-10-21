@@ -464,6 +464,10 @@ a { color: inherit; }
 .pw-eye[aria-pressed=true] { color: var(--ink); }
 
 /* Cambiar contraseña */
+.pw-status { font-size: 12.5px; color: var(--ink-2); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: grid; gap: 6px; }
+.pw-status b { color: var(--ink); font-weight: 500; }
+.pw-status.bad { background: var(--bad-bg); border-color: #f2b8c3; }
+.pw-warn { color: var(--bad); font-weight: 500; }
 .modal.modal-sm { width: min(440px, calc(100% - 24px)); }
 .pw-body { padding: 20px 22px; display: grid; gap: 14px; }
 .pw-show { display: flex; gap: 8px; align-items: center; font-size: 12.5px; color: var(--ink-2); cursor: pointer; }

@@ -58,6 +58,17 @@ function versionOf(stored) {
     return stored ? stored.v : 'env';
 }
 
+// Estado de la contraseña (sin revelar nada secreto), para mostrarlo en el panel.
+async function passwordStatus() {
+    const stored = await getStoredPassword();
+    return {
+        source: stored ? 'panel' : 'vercel',
+        changedAt: stored ? stored.changedAt || null : null,
+        resetActive: process.env.RESET_ADMIN_PASSWORD === '1',
+        vercelPasswordSet: Boolean(process.env.ADMIN_PASSWORD)
+    };
+}
+
 async function passwordConfigured() {
     if (process.env.ADMIN_PASSWORD) return true;
     try { return Boolean(await getStoredPassword()); } catch (e) { return false; }
@@ -74,6 +85,9 @@ async function checkCredentials(username, password) {
 }
 
 async function changePassword(current, next) {
+    if (process.env.RESET_ADMIN_PASSWORD === '1') {
+        throw httpError(409, 'En Vercel está activa la variable RESET_ADMIN_PASSWORD, que borra la contraseña del panel en cada ingreso. Borrala en Vercel → Settings → Environment Variables, hacé Redeploy y volvé a cambiar la contraseña.');
+    }
     const check = await checkCredentials(adminUser(), current);
     if (!check.ok) throw httpError(400, 'La contraseña actual no es correcta');
     next = String(next || '');
@@ -87,6 +101,11 @@ async function changePassword(current, next) {
          ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`,
         [JSON.stringify(value)]
     );
+    // Verificar que quedó guardada
+    const saved = await getStoredPassword();
+    if (!saved || saved.v !== value.v) {
+        throw httpError(500, 'La contraseña no se pudo guardar en la base de datos. Probá de nuevo.');
+    }
     return value.v;
 }
 
@@ -126,4 +145,4 @@ async function requireAuth(req) {
     if (!(await isAuthed(req))) throw httpError(401, 'Sesión vencida. Volvé a ingresar.');
 }
 
-module.exports = { checkCredentials, changePassword, passwordConfigured, sessionCookie, clearCookie, isAuthed, requireAuth, MIN_LENGTH };
+module.exports = { checkCredentials, changePassword, passwordConfigured, passwordStatus, sessionCookie, clearCookie, isAuthed, requireAuth, MIN_LENGTH };

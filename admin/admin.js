@@ -1579,7 +1579,39 @@
         updateMeter();
         ['#pwCurrent', '#pwNext', '#pwRepeat'].forEach(id => setPasswordVisible($(id), false));
         dlg.showModal();
+        loadPasswordStatus();
         $('#pwCurrent').focus();
+    }
+
+    // Muestra qué contraseña está activa y avisa si algo en Vercel impide el cambio.
+    function renderPasswordStatus(st) {
+        const box = $('#pwStatus');
+        box.className = 'pw-status' + (st.resetActive ? ' bad' : '');
+        const parts = [];
+        if (st.source === 'panel') {
+            parts.push(h('span', null, 'Contraseña activa: ', h('b', null, 'la cambiada desde el panel'),
+                st.changedAt ? ` (${fmtDate(st.changedAt)})` : '', '. La variable ADMIN_PASSWORD de Vercel ya no sirve para entrar.'));
+        } else {
+            parts.push(h('span', null, 'Contraseña activa: ', h('b', null, 'la de Vercel (ADMIN_PASSWORD)'), '. Todavía no se cambió desde el panel.'));
+        }
+        if (st.resetActive) {
+            parts.push(h('span', { class: 'pw-warn' }, '⚠ En Vercel está activa la variable RESET_ADMIN_PASSWORD: borra la contraseña del panel en cada ingreso, por eso sigue valiendo la de Vercel. Borrala en Vercel → Settings → Environment Variables, hacé Redeploy y volvé a cambiar la contraseña.'));
+        }
+        box.replaceChildren(...parts);
+    }
+
+    async function loadPasswordStatus() {
+        const box = $('#pwStatus');
+        box.className = 'pw-status';
+        box.textContent = 'Consultando…';
+        try {
+            renderPasswordStatus(await api('/api/password'));
+        } catch (e) {
+            box.textContent = e.status === 404 || e.status === 405
+                ? 'El sitio publicado todavía no tiene esta versión del panel: hacé push y esperá el deploy.'
+                : 'No se pudo consultar el estado de la contraseña: ' + e.message;
+            box.className = 'pw-status bad';
+        }
     }
 
     function updateMeter() {
@@ -1610,11 +1642,19 @@
         btn.disabled = true;
         btn.textContent = 'Cambiando…';
         try {
-            await api('/api/password', { method: 'POST', body: { current, next } });
+            const res = await api('/api/password', { method: 'POST', body: { current, next } });
+            if (!res || !res.status || res.status.source !== 'panel') {
+                err.textContent = 'El servidor respondió, pero la contraseña nueva no quedó activa. Avisame con una captura de este cuadro.';
+                if (res && res.status) renderPasswordStatus(res.status);
+                return;
+            }
             $('#pwModal').close();
-            toast('Contraseña cambiada. Usala la próxima vez que ingreses.');
+            toast('Contraseña cambiada y verificada. Desde ahora solo sirve la nueva.');
         } catch (ex) {
-            if (ex.status === 401) {
+            if (ex.status === 409) {
+                err.textContent = ex.message;
+                loadPasswordStatus();
+            } else if (ex.status === 401) {
                 // La sesión venció: se cierra este cuadro y se muestra el ingreso
                 $('#pwModal').close();
                 showLogin('Tu sesión venció. Ingresá de nuevo y volvé a cambiar la contraseña.');
