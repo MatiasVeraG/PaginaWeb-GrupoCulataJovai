@@ -340,16 +340,28 @@
     function openImageModal(options) {
         const spec = SPECS[options.specKey];
         const dlg = $('#imageModal');
+        const cur = options.current || {};
         const m = {
             file: null, decoded: null, info: null, result: null,
-            pos: (options.current && options.current.pos) || '50% 50%',
-            fit: (options.current && options.current.fit) || (options.mode === 'focus' ? 'cover' : null),
-            zoom: (options.current && options.current.zoom) || 1,
-            nat: null, enlarged: null,
+            // Disposición, encuadre y zoom. "mobile" solo existe si el celular se configura aparte.
+            cfg: {
+                desktop: { fit: cur.fit || (options.mode === 'focus' ? 'cover' : null), pos: cur.pos || '50% 50%', zoom: cur.zoom || 1 },
+                mobile: cur.mobile ? { ...cur.mobile } : null
+            },
+            editing: 'desktop',
+            nat: null, big: null, strip: null, frames: [],
             title: (options.current && options.current.title) || '',
             mime: spec.mime, quality: spec.quality, auto: true, maxLong: spec.maxLong,
             previewUrl: null, busy: false
         };
+        const sameLayout = () => !m.cfg.mobile;
+        const cfgFor = key => (key === 'mobile' && m.cfg.mobile) ? m.cfg.mobile : m.cfg.desktop;
+        // m.fit / m.pos / m.zoom = configuración del dispositivo que se está editando
+        ['fit', 'pos', 'zoom'].forEach(k => Object.defineProperty(m, k, {
+            get: () => cfgFor(m.editing)[k],
+            set: v => { cfgFor(m.editing)[k] = v; }
+        }));
+        const layoutResult = () => ({ ...m.cfg.desktop, fit: m.cfg.desktop.fit || 'cover', mobile: m.cfg.mobile ? { ...m.cfg.mobile } : null });
 
         return new Promise(resolve => {
             let finished = false;
@@ -358,6 +370,8 @@
                 finished = true;
                 if (m.previewUrl) URL.revokeObjectURL(m.previewUrl);
                 if (m.decoded && m.decoded.source.close) m.decoded.source.close();
+                window.removeEventListener('message', onFrameMessage);
+                clearTimeout(m.pushTimer);
                 dlg.close();
                 resolve(value);
             };
@@ -367,18 +381,31 @@
             const headTitle = options.mode === 'focus' ? 'Disposición y encuadre'
                 : options.mode === 'replace' ? `Reemplazar: ${spec.name}` : `Nueva imagen: ${spec.name}`;
 
+            // Esqueleto fijo: cabecera, cuerpo, vistas de página (iframes que no se recargan) y pie.
+            const shell = {
+                body: h('div', { class: 'modal-body' }),
+                foot: h('div', { class: 'modal-foot' })
+            };
+            shell.inner = h('div', { class: 'modal-inner' },
+                h('div', { class: 'modal-head' },
+                    h('h2', null, headTitle),
+                    h('button', { class: 'btn btn-ghost btn-icon', type: 'button', 'aria-label': 'Cerrar', onclick: () => !m.busy && finish(null) }, '✕')
+                ),
+                shell.body,
+                shell.foot);
+            dlg.replaceChildren(shell.inner);
+
             function render() {
-                dlg.replaceChildren(h('div', { class: 'modal-inner' },
-                    h('div', { class: 'modal-head' },
-                        h('h2', null, headTitle),
-                        h('button', { class: 'btn btn-ghost btn-icon', type: 'button', 'aria-label': 'Cerrar', onclick: () => !m.busy && finish(null) }, '✕')
-                    ),
-                    h('div', { class: 'modal-body' },
-                        options.mode === 'focus' ? renderFocusStage(options.current.src) : (m.decoded ? renderStage() : renderDrop()),
-                        h('div', { class: 'side' }, renderSide())
-                    ),
-                    renderFoot()
-                ));
+                const scroll = shell.body.scrollTop;
+                shell.body.replaceChildren(
+                    options.mode === 'focus' ? renderFocusStage(options.current.src) : (m.decoded ? renderStage() : renderDrop()),
+                    h('div', { class: 'side' }, renderSide())
+                );
+                shell.body.scrollTop = scroll;
+                const foot = renderFoot();
+                shell.foot.replaceChildren(...foot.childNodes);
+                if (options.mode === 'focus' || m.decoded) ensureStrip();
+                schedulePush();
             }
 
             function renderRec() {
@@ -455,33 +482,40 @@
                     e.preventDefault();
                     e.stopPropagation();
                     box.setPointerCapture(e.pointerId);
+                    const c = cfgFor(frame.key);
                     const r = m.ui.wrap.getBoundingClientRect();
-                    const vis = visibleRect(m.fit, m.nat.w, m.nat.h, frame.w, frame.h, m.pos, m.zoom);
-                    start = { x: e.clientX, y: e.clientY, r, vis, zoom: m.zoom, resize: e.target === handle };
+                    const vis = visibleRect(c.fit, m.nat.w, m.nat.h, frame.w, frame.h, c.pos, c.zoom);
+                    start = { x: e.clientX, y: e.clientY, r, vis, c, resize: e.target === handle };
                     box.classList.add('dragging');
                 });
                 box.addEventListener('pointermove', e => {
                     if (!start) return;
+                    const c = start.c;
                     const dx = (e.clientX - start.x) / start.r.width;
                     const dy = (e.clientY - start.y) / start.r.height;
                     if (start.resize) {
-                        // Agrandar/achicar el recuadro = menos/más zoom
-                        // Se usa el eje más ajustado: el recuadro visible mide (tamaño sin zoom) / zoom.
-                        const base = visibleRect(m.fit, m.nat.w, m.nat.h, frame.w, frame.h, m.pos, 1);
+                        // Agrandar/achicar el recuadro = menos/más zoom (sobre el eje más ajustado)
+                        const base = visibleRect(c.fit, m.nat.w, m.nat.h, frame.w, frame.h, c.pos, 1);
                         const useX = base.vx <= base.vy;
                         const ref = useX ? base.vx : base.vy;
-                        const cur = Math.max(0.05, useX ? start.vis.width + dx : start.vis.height + dy);
-                        m.zoom = Math.round(Math.min(4, Math.max(1, ref / cur)) * 100) / 100;
+                        const size = Math.max(0.05, useX ? start.vis.width + dx : start.vis.height + dy);
+                        c.zoom = Math.round(Math.min(4, Math.max(1, ref / size)) * 100) / 100;
                     } else {
-                        let [px, py] = parsePos(m.pos);
+                        let [px, py] = parsePos(c.pos);
                         const v = start.vis;
                         if (v.vx < 1) px = Math.min(1, Math.max(0, (v.left + dx) / (1 - v.vx)));
                         if (v.vy < 1) py = Math.min(1, Math.max(0, (v.top + dy) / (1 - v.vy)));
-                        m.pos = `${Math.round(px * 100)}% ${Math.round(py * 100)}%`;
+                        c.pos = `${Math.round(px * 100)}% ${Math.round(py * 100)}%`;
                     }
                     updateEncaje();
                 });
-                const end = () => { start = null; box.classList.remove('dragging'); };
+                const end = () => {
+                    if (!start) return;
+                    start = null;
+                    box.classList.remove('dragging');
+                    // Si se movió el recuadro del otro dispositivo, los controles pasan a ese dispositivo
+                    if (!sameLayout() && m.editing !== frame.key) { m.editing = frame.key; render(); }
+                };
                 box.addEventListener('pointerup', end);
                 box.addEventListener('pointercancel', end);
             }
@@ -492,66 +526,132 @@
                 updateEncaje();
             }
 
-            // Actualiza recuadros, zoom y vistas previas sin redibujar todo el modal.
+            // Actualiza recuadros, zoom y vistas previas sin redibujar el modal.
             function updateEncaje() {
                 if (!m.ui || !m.nat) return;
                 FRAMES.forEach(f => {
                     const box = m.ui.boxes[f.key];
                     if (!box) return;
-                    const v = visibleRect(m.fit, m.nat.w, m.nat.h, f.w, f.h, m.pos, m.zoom);
+                    const c = cfgFor(f.key);
+                    const v = visibleRect(c.fit, m.nat.w, m.nat.h, f.w, f.h, c.pos, c.zoom);
                     Object.assign(box.style, { left: v.left * 100 + '%', top: v.top * 100 + '%', width: v.width * 100 + '%', height: v.height * 100 + '%' });
                     box.classList.toggle('full', v.width >= 0.999 && v.height >= 0.999);
-                    box.classList.toggle('fixed-x', v.vx >= 1);
-                    box.classList.toggle('fixed-y', v.vy >= 1);
+                    box.classList.toggle('editing', !sameLayout() && m.editing === f.key);
+                    box.classList.toggle('other', !sameLayout() && m.editing !== f.key);
                 });
                 const z = dlg.querySelector('.zoom-range');
                 if (z) { z.value = String(Math.round(m.zoom * 100)); z.nextSibling.textContent = Math.round(m.zoom * 100) + ' %'; }
-                dlg.querySelectorAll('[data-frame] img').forEach(img => {
-                    const f = FRAMES.find(x => x.key === img.closest('[data-frame]').dataset.frame);
-                    applyLayout(img, { fit: m.fit, pos: m.pos, zoom: m.zoom }, f.w, f.h);
-                });
                 const info = dlg.querySelector('.encaje-info');
                 if (info) info.textContent = encajeSummary();
+                schedulePush();
             }
 
             function encajeSummary() {
                 if (!m.nat) return '';
                 return FRAMES.map(f => {
-                    const v = visibleRect(m.fit, m.nat.w, m.nat.h, f.w, f.h, m.pos, m.zoom);
+                    const c = cfgFor(f.key);
+                    const v = visibleRect(c.fit, m.nat.w, m.nat.h, f.w, f.h, c.pos, c.zoom);
                     const shown = Math.round(Math.min(1, v.width) * Math.min(1, v.height) * 100);
                     const margins = v.marginX ? ' · márgenes a los costados' : v.marginY ? ' · márgenes arriba y abajo' : '';
                     return `${f.label}: se ve el ${shown} % de la foto${margins}`;
                 }).join('   ·   ');
             }
 
-            function devicePreviews(src) {
-                if (!spec.focal) return null;
-                const card = (f, big) => {
-                    const img = h('img', { src, alt: '' });
-                    const height = big ? Math.min(window.innerHeight * 0.62, f.key === 'mobile' ? 560 : 520) : 150;
-                    const frameEl = h('div', { class: 'device-frame ' + f.key, 'data-frame': f.key, style: { height: height + 'px', width: Math.round(height * f.w / f.h) + 'px' } }, img);
-                    applyLayout(img, { fit: m.fit, pos: m.pos, zoom: m.zoom }, f.w, f.h);
-                    return h('figure', { class: 'device-preview' + (big ? ' big' : '') },
-                        frameEl,
-                        h('figcaption', null, h('b', null, f.label), h('span', null, f.note),
-                            big ? null : h('button', {
-                                class: 'btn btn-ghost btn-sm', type: 'button', title: 'Ver más grande',
-                                onclick: () => { m.enlarged = f.key; render(); }
-                            }, '⤢ Agrandar')));
-                };
-                if (m.enlarged) {
-                    const f = FRAMES.find(x => x.key === m.enlarged);
-                    return h('div', { class: 'device-zoom' },
-                        h('div', { class: 'device-zoom-bar' },
-                            h('span', null, `Vista previa ampliada — ${f.label}`),
-                            h('div', { class: 'seg' }, FRAMES.map(x => h('button', { type: 'button', class: x.key === f.key ? 'active' : '', onclick: () => { m.enlarged = x.key; render(); } }, x.label))),
-                            h('button', { class: 'btn btn-sm', type: 'button', onclick: () => { m.enlarged = null; render(); } }, '✕ Cerrar')),
-                        card(f, true));
-                }
-                return h('div', null,
-                    h('p', { class: 'field-hint', style: { marginBottom: '8px' } }, 'Así se va a ver en el sitio:'),
-                    h('div', { class: 'device-previews' }, FRAMES.map(f => card(f, false))));
+            // --- Vistas de la página completa (el sitio real en un iframe, con esta foto en pantalla)
+            function ensureStrip() {
+                if (!spec.focal || m.strip) return;
+                const cards = FRAMES.map(f => {
+                    const iframe = h('iframe', { src: (f.key === 'mobile' ? '/index.html' : '/index.html') + '?preview=1', title: `Vista de la página en ${f.label}`, tabindex: '-1' });
+                    m.frames.push({ key: f.key, iframe, ready: false });
+                    const device = f.key === 'mobile'
+                        ? h('div', { class: 'preview-frame mobile pp-device pp-phone' },
+                            h('div', { class: 'phone-status' }, h('span', { class: 'phone-time' }, '9:41'), h('span', { class: 'phone-island' }),
+                                h('span', { class: 'phone-icons' }, h('span', { class: 'phone-signal' }, h('i'), h('i'), h('i'), h('i')), h('span', { class: 'phone-battery' }, h('i')))),
+                            iframe,
+                            h('div', { class: 'phone-safari' },
+                                h('div', { class: 'phone-url' }, h('span', { class: 'phone-aa' }, 'AA'), h('span', null, location.host.replace(/^www\./, '')), h('span', { class: 'phone-reload' }, '↻')),
+                                h('div', { class: 'phone-tools' }, h('span', null, '‹'), h('span', { class: 'dim' }, '›'), h('span', null, '⇧'), h('span', null, '▢'), h('span', null, '⧉')),
+                                h('div', { class: 'phone-home' })))
+                        : h('div', { class: 'pp-device pp-desk' }, iframe);
+                    const viewport = h('div', { class: 'pp-viewport' }, device);
+                    const card = h('button', {
+                        type: 'button', class: 'pp-card', 'data-key': f.key,
+                        title: 'Clic para agrandar / achicar',
+                        onclick: () => setBig(m.big === f.key ? null : f.key)
+                    }, viewport, h('span', { class: 'pp-label' }, h('b', null, f.label), h('span', null, f.key === 'mobile' ? 'Safari · 393 × 659' : 'pantalla 1440 × 900'), h('span', { class: 'pp-zoom' }, '⤢')));
+                    return { f, card, viewport, device };
+                });
+                m.strip = h('div', { class: 'pp-strip' },
+                    h('div', { class: 'pp-head' },
+                        h('span', { class: 'pp-title' }, 'Así se ve la página'),
+                        h('span', { class: 'pp-hint' }, 'Clic en una vista para agrandarla'),
+                        h('div', { class: 'seg pp-switch' }, FRAMES.map(f => h('button', { type: 'button', 'data-key': f.key, onclick: () => setBig(f.key) }, f.label))),
+                        h('button', { class: 'btn btn-sm pp-close', type: 'button', onclick: () => setBig(null) }, '✕ Cerrar vista grande')),
+                    h('div', { class: 'pp-cards' }, cards.map(c => c.card)));
+                m.cards = cards;
+                shell.inner.insertBefore(m.strip, shell.foot);
+                layoutStrip();
             }
+
+            // Tamaño de cada vista: chica en la tira, o grande ocupando el modal.
+            function layoutStrip() {
+                if (!m.strip) return;
+                const big = m.big;
+                m.strip.classList.toggle('big', !!big);
+                if (big) {
+                    const head = shell.inner.querySelector('.modal-head');
+                    m.strip.style.top = head.offsetHeight + 'px';
+                    m.strip.style.bottom = shell.foot.offsetHeight + 'px';
+                }
+                m.strip.querySelectorAll('.pp-switch button').forEach(b => b.classList.toggle('active', b.dataset.key === big));
+                const availW = big ? m.strip.clientWidth - 48 : 0;
+                const availH = big ? m.strip.clientHeight - 70 : 0;
+                m.cards.forEach(({ f, card, viewport, device }) => {
+                    const W = f.key === 'mobile' ? 417 : 1440;
+                    const H = f.key === 'mobile' ? 876 : 900;
+                    card.hidden = !!big && big !== f.key;
+                    const scale = big ? Math.min(availW / W, availH / H, 1) : (f.key === 'mobile' ? 200 / H : 300 / W);
+                    viewport.style.width = Math.round(W * scale) + 'px';
+                    viewport.style.height = Math.round(H * scale) + 'px';
+                    device.style.transform = `scale(${scale})`;
+                });
+            }
+
+            function setBig(key) {
+                m.big = key;
+                layoutStrip();
+            }
+
+            // Envía a las vistas el contenido actual con esta foto ya ubicada y visible.
+            function schedulePush(delay = 120) {
+                if (!m.strip) return;
+                clearTimeout(m.pushTimer);
+                m.pushTimer = setTimeout(pushPreviews, delay);
+            }
+
+            function pushPreviews() {
+                const src = options.mode === 'focus' ? options.current.src : m.previewUrl;
+                if (!src) return;
+                const content = clone(state.draft);
+                const list = content.home.carousel;
+                const item = { src, title: m.title, ...layoutResult() };
+                let idx = Number.isInteger(options.index) ? options.index : list.length;
+                if (idx >= list.length) { list.push(item); idx = list.length - 1; } else list[idx] = item;
+                m.frames.forEach(fr => {
+                    if (fr.ready && fr.iframe.contentWindow) {
+                        fr.iframe.contentWindow.postMessage({ type: 'cj-preview', content, lang: state.lang, focus: idx }, location.origin);
+                    }
+                });
+            }
+
+            function onFrameMessage(e) {
+                if (e.origin !== location.origin || !e.data || e.data.type !== 'cj-preview-ready') return;
+                const fr = m.frames.find(x => x.iframe.contentWindow === e.source);
+                if (!fr) return;
+                fr.ready = true;
+                schedulePush(0);
+            }
+            window.addEventListener('message', onFrameMessage);
 
             function encajeHelp() {
                 if (!spec.focal) return null;
@@ -575,21 +675,20 @@
                             h('li', null, h('b', null, 'Mover: '), 'arrastrá cualquiera de los recuadros para elegir qué parte de la foto se muestra.'),
                             h('li', null, h('b', null, 'Acercar: '), 'arrastrá la esquina ◢ de un recuadro hacia adentro, o usá el control de Zoom.'),
                             h('li', null, h('b', null, 'Por defecto: '), 'centrado y sin zoom. Doble clic sobre la foto o “Restablecer encuadre” vuelve a eso.'),
-                            h('li', null, 'Si un recuadro ocupa toda la foto, en ese dispositivo se ve entera; según la disposición pueden quedar márgenes blancos.')));
+                            h('li', null, 'Si un recuadro ocupa toda la foto, en ese dispositivo se ve entera; según la disposición pueden quedar márgenes blancos.'),
+                            h('li', null, h('b', null, 'Compu y celular distintos: '), 'desactivá “Misma disposición en compu y celular”. Cada recuadro se mueve y se hace zoom por separado; el del dispositivo que estás editando se ve más marcado.'),
+                            h('li', null, h('b', null, 'Ver el resultado: '), 'abajo están las vistas de la página en compu y en iPhone, con esta foto en pantalla. Hacé clic en una para verla grande; otro clic la achica.')));
             }
 
             function renderFocusStage(src) {
-                if (m.enlarged) return h('div', { class: 'stage' }, devicePreviews(src));
-                return h('div', { class: 'stage' }, encajeStage(src), encajeHelp(), devicePreviews(src), encajeHow());
+                return h('div', { class: 'stage' }, encajeStage(src), encajeHelp(), encajeHow());
             }
 
             function renderStage() {
                 const src = m.previewUrl;
-                if (m.enlarged) return h('div', { class: 'stage' }, devicePreviews(src));
                 return h('div', { class: 'stage' },
                     encajeStage(src),
                     encajeHelp(),
-                    devicePreviews(src),
                     encajeHow(),
                     m.result ? h('div', { class: 'compare muted' },
                         h('span', null, `Original: ${m.decoded.width} × ${m.decoded.height} px · ${fmtBytes(m.file.size)}`),
@@ -713,12 +812,33 @@
 
             function renderFit() {
                 if (!spec.focal) return null;
+                const separate = !sameLayout();
                 const opt = f => h('button', {
                     type: 'button', class: 'fit-opt' + (m.fit === f.value ? ' active' : ''), 'aria-pressed': String(m.fit === f.value),
                     onclick: () => { m.fit = f.value; render(); }
                 }, h('span', { class: 'fit-ic fit-ic-' + f.value }, h('span')), h('span', null, h('b', null, f.label), h('small', null, f.desc)));
+                const deviceName = (FRAMES.find(f => f.key === m.editing) || FRAMES[0]).label;
                 return h('div', { class: 'block' },
-                    h('h4', null, 'Disposición'),
+                    h('h4', null, separate ? `Disposición — ${deviceName}` : 'Disposición'),
+                    h('label', { class: 'same-toggle' },
+                        h('input', {
+                            type: 'checkbox', checked: !separate,
+                            onchange: e => {
+                                if (e.target.checked) { m.cfg.mobile = null; m.editing = 'desktop'; }
+                                else { m.cfg.mobile = { ...m.cfg.desktop, fit: m.cfg.desktop.fit || 'cover' }; }
+                                render();
+                            }
+                        }),
+                        h('span', null, h('b', null, 'Misma disposición en compu y celular'),
+                            h('small', null, separate
+                                ? 'Desactivado: la compu y el celular tienen disposición, encuadre y zoom propios.'
+                                : 'Desactivalo para elegir otra disposición o encuadre en el celular.'))),
+                    separate ? h('div', { class: 'edit-device' },
+                        h('span', null, 'Estás editando:'),
+                        h('div', { class: 'seg' }, FRAMES.map(f => h('button', {
+                            type: 'button', class: m.editing === f.key ? 'active' : '',
+                            onclick: () => { m.editing = f.key; render(); }
+                        }, f.label)))) : null,
                     h('div', { class: 'fit-opts' }, FITS.map(opt)));
             }
 
@@ -741,7 +861,7 @@
             }
 
             function resetFile() {
-                m.nat = null; m.ui = null; m.enlarged = null;
+                m.nat = null; m.ui = null;
                 if (m.previewUrl) URL.revokeObjectURL(m.previewUrl);
                 if (m.decoded && m.decoded.source.close) m.decoded.source.close();
                 Object.assign(m, { file: null, decoded: null, info: null, result: null, previewUrl: null, error: null });
@@ -798,7 +918,7 @@
 
             async function accept() {
                 if (options.mode === 'focus') {
-                    return finish({ src: options.current.src, pos: m.pos, fit: m.fit, zoom: m.zoom, title: m.title });
+                    return finish({ src: options.current.src, title: m.title, ...layoutResult() });
                 }
                 if (m.result.blob.size > 3 * 1024 * 1024) {
                     toast('La imagen todavía pesa más de 3 MB. Bajá la calidad o el tamaño.', true);
@@ -813,7 +933,7 @@
                         body: { data, mime: m.result.mime, width: m.result.width, height: m.result.height, name: m.file.name }
                     });
                     m.busy = false;
-                    finish({ src: res.src, pos: m.pos, fit: m.fit || 'cover', zoom: m.zoom, title: m.title, width: res.width, height: res.height, bytes: res.bytes });
+                    finish({ src: res.src, title: m.title, ...layoutResult(), width: res.width, height: res.height, bytes: res.bytes });
                 } catch (e) {
                     m.busy = false;
                     render();
@@ -823,6 +943,9 @@
 
             render();
             dlg.showModal();
+            const onResize = () => layoutStrip();
+            window.addEventListener('resize', onResize);
+            dlg.addEventListener('close', () => window.removeEventListener('resize', onResize), { once: true });
         });
     }
 
@@ -971,23 +1094,24 @@
                         oninput: e => { item.title = e.target.value; draftChanged(); }
                     }),
                     h('label', { class: 'fit-select' },
-                        h('span', null, 'Disposición'),
+                        h('span', null, item.mobile ? 'Compu' : 'Disposición'),
                         h('select', { 'aria-label': 'Disposición', onchange: e => setFit(e.target.value) },
-                            FITS.map(f => h('option', { value: f.value, selected: f.value === fit, title: f.desc }, f.label)))),
+                            FITS.map(f => h('option', { value: f.value, selected: f.value === fit, title: f.desc }, f.label))),
+                        item.mobile ? h('span', { class: 'mobile-tag', title: 'El celular tiene su propia disposición. Cambiala desde “Encuadre”.' }, `Celular: ${fitLabel(item.mobile.fit)}`) : null),
                     h('div', { class: 'slide-actions' },
                         h('button', {
                             class: 'btn btn-ghost btn-sm', type: 'button', onclick: async () => {
-                                const r = await openImageModal({ specKey: 'carousel', mode: 'focus', current: { ...item, src: '/' + item.src.replace(/^\//, '') }, titleField: TITLE_FIELD });
+                                const r = await openImageModal({ specKey: 'carousel', mode: 'focus', index: i, current: { ...item, src: '/' + item.src.replace(/^\//, '') }, titleField: TITLE_FIELD });
                                 if (!r) return;
-                                item.pos = r.pos; item.fit = r.fit; item.zoom = r.zoom; item.title = r.title;
+                                Object.assign(item, { pos: r.pos, fit: r.fit, zoom: r.zoom, mobile: r.mobile, title: r.title });
                                 draftChanged(); renderEditor();
                             }
                         }, 'Encuadre'),
                         h('button', {
                             class: 'btn btn-ghost btn-sm', type: 'button', onclick: async () => {
-                                const r = await openImageModal({ specKey: 'carousel', mode: 'replace', current: item, titleField: TITLE_FIELD });
+                                const r = await openImageModal({ specKey: 'carousel', mode: 'replace', index: i, current: item, titleField: TITLE_FIELD });
                                 if (!r) return;
-                                Object.assign(item, { src: r.src, pos: r.pos, fit: r.fit, zoom: r.zoom, title: r.title });
+                                Object.assign(item, { src: r.src, pos: r.pos, fit: r.fit, zoom: r.zoom, mobile: r.mobile, title: r.title });
                                 draftChanged(); renderEditor();
                                 toast('Foto reemplazada. Apretá “Publicar” para que se vea en el sitio.');
                             }
@@ -1016,9 +1140,9 @@
             list,
             h('button', {
                 class: 'btn add-btn', type: 'button', onclick: async () => {
-                    const r = await openImageModal({ specKey: 'carousel', mode: 'new', titleField: TITLE_FIELD });
+                    const r = await openImageModal({ specKey: 'carousel', mode: 'new', index: items.length, titleField: TITLE_FIELD });
                     if (!r) return;
-                    items.push({ src: r.src, title: r.title, pos: r.pos, fit: r.fit, zoom: r.zoom });
+                    items.push({ src: r.src, title: r.title, pos: r.pos, fit: r.fit, zoom: r.zoom, mobile: r.mobile });
                     draftChanged(); renderEditor();
                     toast('Foto agregada al final del carrusel.');
                 }
@@ -1196,6 +1320,7 @@
 
     window.addEventListener('message', e => {
         if (e.origin !== location.origin || !e.data || e.data.type !== 'cj-preview-ready') return;
+        if (e.source !== $('#previewIframe').contentWindow) return;
         previewReady = true;
         sendPreview();
     });

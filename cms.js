@@ -28,7 +28,7 @@
         if (!inAdminPreview) return;
         window.addEventListener('message', e => {
             if (e.origin !== location.origin || !e.data || e.data.type !== 'cj-preview') return;
-            callback(e.data.content, e.data.lang);
+            callback(e.data.content, e.data.lang, e.data.focus);
         });
         window.parent.postMessage({ type: 'cj-preview-ready' }, location.origin);
     }
@@ -58,20 +58,31 @@
         return 'cover';
     }
 
+    // Celular = el mismo corte que usa el diseño del sitio (hasta 768 px de ancho).
+    const MOBILE_QUERY = '(max-width: 768px)';
+
+    // Configuración a usar: si la foto tiene una disposición propia para celular, se usa en pantallas chicas.
+    function layoutFor(item) {
+        if (item.mobile && window.matchMedia && window.matchMedia(MOBILE_QUERY).matches) return item.mobile;
+        return item;
+    }
+
     // Aplica disposición, encuadre (pos) y zoom a una <img>. Devuelve una función para recalcular al cambiar el tamaño.
     function layoutImage(img, item) {
-        const pos = item.pos || '50% 50%';
-        const zoom = Number(item.zoom) || 1;
-        img.style.objectPosition = pos;
-        img.style.transformOrigin = pos;
-        img.style.transform = zoom !== 1 ? 'scale(' + zoom + ')' : '';
-        img.style.objectFit = item.fit === 'contain' ? 'contain' : 'cover';
         const update = () => {
+            const c = layoutFor(item);
+            const pos = c.pos || '50% 50%';
+            const zoom = Number(c.zoom) || 1;
+            img.style.objectPosition = pos;
+            img.style.transformOrigin = pos;
+            img.style.transform = zoom !== 1 ? 'scale(' + zoom + ')' : '';
             const box = img.parentElement;
-            if (!img.naturalWidth || !box || !box.clientHeight) return;
-            img.style.objectFit = fitMode(item.fit, img.naturalWidth, img.naturalHeight, box.clientWidth, box.clientHeight);
+            img.style.objectFit = img.naturalWidth && box && box.clientHeight
+                ? fitMode(c.fit, img.naturalWidth, img.naturalHeight, box.clientWidth, box.clientHeight)
+                : (c.fit === 'contain' ? 'contain' : 'cover');
         };
-        if (img.complete) update(); else img.addEventListener('load', update, { once: true });
+        update();
+        if (!img.complete) img.addEventListener('load', update, { once: true });
         return update;
     }
 

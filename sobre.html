@@ -176,13 +176,15 @@
             changeLanguage(currentLang);
             const sec = document.getElementById('nosotros');
             if (sec) sec.classList.add('active');
+            let previewActive = false;
             CMS.load().then(content => {
-                if (!content) return;
+                if (!content || previewActive) return;
                 SITE = content;
                 applyTranslations(currentLang);
             });
             // Vista previa en vivo desde /admin
             CMS.onPreview((content, lang) => {
+                previewActive = true;
                 SITE = content;
                 if (lang && lang !== currentLang) changeLanguage(lang);
                 else applyTranslations(currentLang);

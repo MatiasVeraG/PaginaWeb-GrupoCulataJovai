@@ -41,7 +41,10 @@ Al cambiar o agregar una imagen, el panel:
 - con **Encuadre** se ve el **recuadro de encaje** sobre la foto: el negro es lo que se ve en la compu (pantalla 1440 × 900)
   y el rojo punteado lo que se ve en un iPhone 15. Se arrastra para mover el encuadre y desde la esquina para hacer zoom.
   Por defecto queda centrado y sin zoom (doble clic o "Restablecer encuadre" vuelve a eso).
-- las vistas previas de Compu e iPhone se pueden **agrandar**, y la vista previa principal tiene el botón **Ampliar**.
+- **compu y celular pueden ir distintos**: desactivando "Misma disposición en compu y celular", cada dispositivo
+  tiene su propia disposición, encuadre y zoom (el sitio usa la del celular en pantallas de hasta 768 px de ancho).
+- abajo del editor se ve **la página completa** en compu y en iPhone 15 con esa foto en pantalla; un clic la agranda
+  y otro la achica. La vista previa principal también tiene el botón **Ampliar**.
 
 | Lugar | Tamaño recomendado | Peso final |
 |---|---|---|

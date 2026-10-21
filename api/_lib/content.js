@@ -36,14 +36,20 @@ function sanitize(input) {
     const g = c.global || {}, h = c.home || {}, s = c.sobre || {};
     const labels = h.labels || {};
 
+    const FITS = ['cover', 'contain', 'height', 'width'];
+    const layout = o => ({
+        fit: FITS.includes(o && o.fit) ? o.fit : 'cover',
+        pos: pos(o && o.pos),
+        zoom: Math.round(Math.min(4, Math.max(1, Number(o && o.zoom) || 1)) * 100) / 100
+    });
     const carousel = (Array.isArray(h.carousel) ? h.carousel : [])
         .slice(0, 80)
         .map(item => ({
             src: imgSrc(item && item.src, null),
             title: clean(item && item.title, 200),
-            pos: pos(item && item.pos),
-            fit: ['cover', 'contain', 'height', 'width'].includes(item && item.fit) ? item.fit : 'cover',
-            zoom: Math.round(Math.min(4, Math.max(1, Number(item && item.zoom) || 1)) * 100) / 100
+            ...layout(item),
+            // Disposición propia para celular (opcional)
+            mobile: item && item.mobile && typeof item.mobile === 'object' ? layout(item.mobile) : null
         }))
         .filter(item => item.src);
     if (!carousel.length) throw httpError(400, 'El carrusel necesita al menos una foto');

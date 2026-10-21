@@ -432,7 +432,8 @@
 
         let SITE = null;          // contenido publicado desde /admin
         let currentLang = CMS.savedLang();
-        let renderedCarousel = '';
+        let renderedSrcs = '';
+        let previewActive = false;   // dentro del panel, la vista previa manda sobre lo publicado
         let layoutUpdaters = [];
         window.addEventListener('resize', () => layoutUpdaters.forEach(fn => fn()));
 
@@ -498,17 +499,27 @@
         // Crear slides del carousel
         function createCarousel() {
             const projects = (SITE && SITE.home.carousel) || DEFAULT_CAROUSEL;
-            const signature = JSON.stringify(projects);
-            if (signature === renderedCarousel) return;
-            renderedCarousel = signature;
-
             const container = document.getElementById('carouselContainer');
+            // Clonar último elemento al inicio y el primer elemento al final para efecto infinito
+            const allProjects = projects.length ? [projects[projects.length - 1], ...projects, projects[0]] : [];
+
+            // Si las fotos son las mismas, solo se actualiza disposición/encuadre (sin recargar)
+            const srcs = JSON.stringify(allProjects.map(p => p.src));
+            if (srcs === renderedSrcs) {
+                const imgs = container.querySelectorAll('.carousel-slide img');
+                layoutUpdaters = [];
+                allProjects.forEach((project, i) => {
+                    if (!imgs[i]) return;
+                    imgs[i].alt = project.title || '';
+                    layoutUpdaters.push(CMS.layoutImage(imgs[i], project));
+                });
+                return;
+            }
+            renderedSrcs = srcs;
+
             container.innerHTML = '';
             layoutUpdaters = [];
             if (!projects.length) return;
-
-            // Clonar último elemento al inicio y el primer elemento al final para efecto infinito
-            const allProjects = [projects[projects.length - 1], ...projects, projects[0]];
 
             allProjects.forEach((project, i) => {
                 const slide = document.createElement('div');
@@ -530,6 +541,15 @@
             // Sin animación: si no, el scroll infinito interpreta el salto inicial como llegar al clon
             container.style.scrollBehavior = 'auto';
             container.scrollLeft = container.clientWidth;
+            container.offsetHeight;
+            container.style.scrollBehavior = 'smooth';
+        }
+
+        // Mostrar una foto concreta (la usa la vista previa del panel)
+        function showSlide(index) {
+            const container = document.getElementById('carouselContainer');
+            container.style.scrollBehavior = 'auto';
+            container.scrollLeft = container.clientWidth * (index + 1);
             container.offsetHeight;
             container.style.scrollBehavior = 'smooth';
         }
@@ -575,6 +595,7 @@
         setupInfiniteScroll();
 
         CMS.load().then(content => {
+            if (previewActive) return;
             if (content) {
                 SITE = content;
                 applyTranslations(currentLang);
@@ -583,11 +604,13 @@
         });
 
         // Vista previa en vivo desde /admin
-        CMS.onPreview((content, lang) => {
+        CMS.onPreview((content, lang, focus) => {
+            previewActive = true;
             SITE = content;
             if (lang && lang !== currentLang) changeLanguage(lang);
             else applyTranslations(currentLang);
             createCarousel();
+            if (typeof focus === 'number') showSlide(focus);
         });
     </script>
 </body>
