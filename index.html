@@ -180,6 +180,17 @@
             gap: 32px;
         }
 
+        /* Aviso de derechos de autor: chico y discreto, debajo de los idiomas */
+        .copyright {
+            margin-top: -18px;
+            font-size: 8.5px;
+            line-height: 1.5;
+            letter-spacing: 0.5px;
+            color: var(--text-color);
+            opacity: 0.4;
+            font-weight: 400;
+        }
+
         .social-links-text {
             display: flex;
             flex-direction: column;
@@ -325,6 +336,11 @@
                 gap: 20px;
                 padding-top: 25px;
             }
+
+            .copyright {
+                margin-top: 6px;
+                padding-bottom: 4px;
+            }
         }
 
         @media (max-width: 480px) {
@@ -389,6 +405,7 @@
                     <span class="lang-option" data-lang="en" onclick="changeLanguage('en')">en</span>
                     <span class="lang-option" data-lang="de" onclick="changeLanguage('de')">de</span>
                 </div>
+                <p class="copyright">© <span id="copyYear">2026</span> Grupo Culata Jovái Arquitectos. <span data-i18n="rights">Todos los derechos reservados.</span></p>
             </div>
         </aside>
 
@@ -402,10 +419,12 @@
     <script>
         // Textos por defecto (se reemplazan por lo que se edite en /admin)
         const translations = {
-            es: { 'contact-address': 'Dirección', 'contact-phone': 'Teléfono', 'nav-sobre': 'Sobre' },
-            en: { 'contact-address': 'Address', 'contact-phone': 'Phone', 'nav-sobre': 'About' },
-            de: { 'contact-address': 'Adresse', 'contact-phone': 'Telefon', 'nav-sobre': 'Über' }
+            es: { 'contact-address': 'Dirección', 'contact-phone': 'Teléfono', 'nav-sobre': 'Sobre', 'rights': 'Todos los derechos reservados.' },
+            en: { 'contact-address': 'Address', 'contact-phone': 'Phone', 'nav-sobre': 'About', 'rights': 'All rights reserved.' },
+            de: { 'contact-address': 'Adresse', 'contact-phone': 'Telefon', 'nav-sobre': 'Über', 'rights': 'Alle Rechte vorbehalten.' }
         };
+        // Año del aviso de derechos de autor
+        document.getElementById('copyYear').textContent = new Date().getFullYear();
 
         // Fotos por defecto del carrusel (si el panel no tiene contenido guardado)
         const DEFAULT_CAROUSEL = [
