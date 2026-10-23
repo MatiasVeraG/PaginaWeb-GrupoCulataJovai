@@ -180,9 +180,17 @@
             gap: 32px;
         }
 
-        /* Aviso de derechos de autor: chico y discreto, debajo de los idiomas */
+        /* Aviso de derechos de autor: chico y discreto, apoyado en el borde inferior de la página */
+        .sidebar {
+            position: relative;
+            padding-bottom: 60px;   /* lugar para el aviso al pie */
+        }
+
         .copyright {
-            margin-top: -18px;
+            position: absolute;
+            left: 40px;
+            right: 40px;
+            bottom: 12px;
             font-size: 8.5px;
             line-height: 1.5;
             letter-spacing: 0.5px;
@@ -337,9 +345,15 @@
                 padding-top: 25px;
             }
 
+            /* En celular el aviso baja hasta el fondo si hay lugar; si no, queda debajo de los idiomas */
+            .sidebar-footer {
+                flex: 1 0 auto;
+            }
+
             .copyright {
-                margin-top: 6px;
-                padding-bottom: 4px;
+                position: static;
+                margin-top: auto;
+                padding-top: 8px;
             }
         }
 
